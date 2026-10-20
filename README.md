@@ -1,0 +1,50 @@
+# TURNitURE — Turn It Yours
+
+졸업 프로젝트 웹사이트. `Reference/` 폴더의 시안(1920 × 1080)을 기준으로 만든 정적 사이트입니다.
+프레임워크 없이 HTML / CSS / JS 만 사용합니다.
+
+## 구조
+
+| 파일 | 설명 |
+|---|---|
+| `index.html` | 전체 마크업 (헤더 · 메인 · Images/Sounds 페이지 · Color 패널) |
+| `styles.css` | 레이아웃과 색. 1920 × 1080 아트보드 좌표를 그대로 사용 |
+| `app.js` | 탭 전환, hover, Color 패널, 커스텀 커서 |
+| `shapes.js` | 가구 실루엣 SVG 패스 + 컬러 팔레트 |
+| `assets/logo.svg` | 로고 (`fill`을 `currentColor`로 바꿔 색이 따라오게 함) |
+| `Reference/` | 작업 기준이 된 시안 이미지 |
+
+## 화면
+
+- **메인** — `Reference/메인_1.png` 배열 그대로. 로고(좌상단) · 네비게이션(우상단) · `Turn It Yours`
+- **Images / Sounds** — 내용은 동일하고 탭과 제목만 다름
+  - 기본 제목: `Change your images` / `Change your sounds`
+  - 항목(Side Table · Tray · Wall Shelves · Stool)에 마우스를 올리면
+    제목이 `What do you want?`로 바뀌고, 박스가 가운데에서 부드럽게 열리면서
+    상세 형상과 치수가 나타납니다
+- **Colors** — 8개 색상이 위에서 아래로 차례대로 내려옵니다
+  - `1` = 글자·도형 색 (foreground), `2` = 배경 색 (background)
+  - 색을 누를 때마다 `1` → `2` → `1` … 순서로 지정됩니다
+  - 맨 아래 X, `Colors` 탭, 또는 빈 영역을 클릭하면 닫힙니다
+
+## 좌표계
+
+모든 수치는 시안과 같은 **1920 × 1080 아트보드 px**로 적어 두고,
+`app.js`가 창 크기에 맞춰 `--k` 배율만 바꿔 줍니다. 그래서 어떤 창 크기에서도 배열이 시안과 같습니다.
+
+## 로컬에서 보기
+
+```bash
+python3 serve.py
+```
+
+→ http://localhost:4173
+
+`file://`로 열면 브라우저 보안 정책 때문에 로고 마스크가 보이지 않을 수 있으니 위 방법을 권합니다.
+
+## 메모
+
+- 본문 서체는 macOS의 **Avenir Next**를 쓰고, 없는 환경에서는 Google Fonts의 Montserrat로 대체됩니다.
+- 로고는 `Reference/Logo.svg`를 사용했습니다. (요청 메시지에는 `Logo.png`라고 적혀 있었지만 폴더에는 svg만 있었습니다. 벡터라 더 선명합니다.)
+- 색상 값은 시안 PNG에서 직접 픽셀을 추출해 맞췄습니다. 기본값은 `#00A698`(1번) / `#6F5D00`(2번).
+- `About` 탭은 요청에 따라 넣지 않았습니다.

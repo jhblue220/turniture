@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TURNitURE — Turn It Yours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="viewport">
+  <div class="stage" id="stage">
+
+    <!-- ── header ───────────────────────────────────────── -->
+    <header class="header">
+      <a class="logo" href="#" data-go="home" aria-label="TURNitURE home"></a>
+      <nav class="nav">
+        <span class="nav__pre">You can change</span>
+        <button class="nav__tab" data-tab="images">Images</button>
+        <button class="nav__tab" data-tab="sounds">Sounds</button>
+        <button class="nav__tab" data-tab="colors">Colors</button>
+      </nav>
+    </header>
+
+    <!-- ── main page ────────────────────────────────────── -->
+    <section class="page page--home is-on" data-page="home">
+      <h1 class="hero">Turn It Yours</h1>
+    </section>
+
+    <!-- ── images / sounds page ─────────────────────────── -->
+    <section class="page page--picker" data-page="picker">
+      <h2 class="picker__title"><span data-title>Change your images</span></h2>
+
+      <div class="items" id="items"></div>
+
+      <button class="next" aria-label="Next">
+        <svg viewBox="0 0 62 62" width="62" height="62" aria-hidden="true">
+          <circle cx="31" cy="31" r="31" fill="currentColor"/>
+          <path d="M26 17 L41 31 L26 45" fill="none" stroke="var(--bg)" stroke-width="7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </section>
+
+    <!-- ── color panel ──────────────────────────────────── -->
+    <aside class="colors" id="colors" aria-hidden="true">
+      <div class="colors__list" id="swatches"></div>
+      <button class="colors__close" id="colorsClose" aria-label="Close colors">
+        <svg viewBox="0 0 60 60" width="60" height="60" aria-hidden="true">
+          <circle cx="30" cy="30" r="27" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+          <path d="M21 21 L39 39 M39 21 L21 39" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </aside>
+
+    <div class="cursor" id="cursor"><div class="cursor__dot"></div></div>
+  </div>
+</div>
+<script src="shapes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

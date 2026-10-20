@@ -1,0 +1,197 @@
+/* ==========================================================================
+   TURNitURE — layout is authored on a fixed 1920 x 1080 artboard (the same
+   one the Reference PNGs were exported from) and scaled to fit the window,
+   so the arrangement stays identical to the reference at any size.
+   ========================================================================== */
+
+:root{
+  --fg: #00A698;   /* colour slot 1 — type, shapes, boxes */
+  --bg: #6F5D00;   /* colour slot 2 — page background     */
+  --on: #FFFFFF;   /* active tab                          */
+  --k : 1;         /* artboard scale, set from app.js     */
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; cursor:none; }
+
+html,body{
+  height:100%;
+  background:var(--bg);
+  transition: background-color .35s ease;
+}
+
+body{
+  font-family:'Avenir Next','Avenir','Montserrat',system-ui,-apple-system,sans-serif;
+  font-weight:600;
+  color:var(--fg);
+  overflow:hidden;
+  cursor:none;
+}
+button{ font:inherit; color:inherit; background:none; border:0; }
+a{ color:inherit; text-decoration:none; }
+
+.viewport{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.stage{
+  position:relative;
+  width:1920px; height:1080px;
+  flex:0 0 auto;
+  transform:scale(var(--k));
+  transform-origin:center center;
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.logo{
+  position:absolute; left:30px; top:27px; z-index:10;
+  width:369px; height:54px;
+  color:var(--fg);
+  -webkit-mask:url(assets/logo.svg) no-repeat center / contain;
+          mask:url(assets/logo.svg) no-repeat center / contain;
+  background:currentColor;
+  transition: background-color .35s ease;
+}
+
+.nav{
+  position:absolute; right:31px; top:23px; z-index:10;
+  display:flex; align-items:baseline; gap:47px;
+}
+.nav__pre{
+  position:relative; top:-14px;
+  font-size:30px; line-height:1; font-weight:500; letter-spacing:-.038em;
+}
+.nav__tab{
+  font-size:71px; line-height:1; letter-spacing:-.041em;
+  transition: color .2s ease;
+}
+.nav__tab.is-on{ color:var(--on); }
+
+/* ── pages ──────────────────────────────────────────────────────────────── */
+
+.page{ position:absolute; inset:0; display:none; }
+.page.is-on{ display:block; }
+
+/* main page — arrangement taken from 메인_1.png */
+.hero{
+  position:absolute; left:93px; top:558px;
+  font-size:251px; line-height:1; font-weight:600; letter-spacing:-.021em;
+  white-space:nowrap;
+}
+
+/* images / sounds page */
+.picker__title{
+  position:absolute; left:30px; top:203px;
+  font-size:140px; line-height:1; font-weight:600; letter-spacing:-.017em;
+  white-space:nowrap;
+}
+
+.next{
+  position:absolute; left:1829px; top:679px;
+  width:62px; height:62px; color:var(--fg);
+}
+
+/* ── the four items ─────────────────────────────────────────────────────── */
+
+.item{
+  position:absolute; top:423px; width:361px; height:574px;
+}
+.item:nth-child(1){ left:50px;   }
+.item:nth-child(2){ left:454px;  }
+.item:nth-child(3){ left:861px;  }
+.item:nth-child(4){ left:1270px; }
+
+/* the box that grows out of the centre on hover */
+.item__box{
+  position:absolute; inset:0;
+  background:var(--fg);
+  opacity:0;
+  transform:scale(.72);
+  transition: transform .34s cubic-bezier(.22,.9,.3,1), opacity .22s ease,
+              background-color .35s ease;
+}
+.item.is-hot .item__box{ opacity:1; transform:scale(1); }
+
+.item__shape{
+  position:absolute; left:0; right:0; bottom:209px; height:0;
+}
+.item__shape svg{ display:block; position:absolute; left:50%; bottom:0; transform:translateX(-50%); }
+.item__shape svg path{ transition: fill .35s ease; }
+.item__shape .s-rest { fill:var(--fg); transition: opacity .18s ease, fill .35s ease; }
+.item__shape .s-hover{ fill:var(--bg); opacity:0; transition: opacity .18s ease .06s, fill .35s ease; }
+.item.is-hot .s-rest { opacity:0; }
+.item.is-hot .s-hover{ opacity:1; }
+
+.item__label{
+  position:absolute; left:0; right:0; top:404px;
+  text-align:center;
+  font-size:61px; line-height:1; letter-spacing:-.044em;
+  transition: color .2s ease;
+}
+.item__size{
+  position:absolute; left:0; right:0; top:464px;
+  text-align:center;
+  font-size:44px; line-height:1; font-weight:500; letter-spacing:-.028em;
+  color:var(--bg);
+  opacity:0;
+  transition: opacity .2s ease, color .35s ease;
+}
+.item.is-hot .item__label{ color:var(--bg); }
+.item.is-hot .item__size { opacity:1; }
+
+/* ── colour panel ───────────────────────────────────────────────────────── */
+
+.colors{
+  position:absolute; inset:0;
+  pointer-events:none;          /* only the swatches themselves are clickable */
+  visibility:hidden;
+}
+.colors.is-open{ visibility:visible; }
+.colors.is-open .swatch,
+.colors.is-open .colors__close{ pointer-events:auto; }
+
+.colors__list{ position:absolute; left:1764px; top:124px; }
+
+.swatch{
+  position:absolute; left:0;
+  width:60px; height:60px; border-radius:50%;
+  display:grid; place-items:center;
+  font-size:22px; font-weight:600; color:#FFFFFF;
+  opacity:0; transform:translateY(-26px);
+  transition: opacity .28s ease, transform .34s cubic-bezier(.22,.9,.3,1);
+}
+.colors.is-open .swatch{ opacity:1; transform:translateY(0); }
+
+.swatch__n{ opacity:0; transition:opacity .18s ease; }
+.swatch.is-picked .swatch__n{ opacity:1; }
+.swatch.is-picked::after{
+  content:''; position:absolute; inset:0; border-radius:50%;
+  background:rgba(0,0,0,.3);
+}
+.swatch__n{ position:relative; z-index:1; }
+
+.colors__close{
+  position:absolute; left:1764px; top:924px;
+  width:60px; height:60px;
+  opacity:0; transform:translateY(-26px);
+  transition: opacity .28s ease .32s, transform .34s cubic-bezier(.22,.9,.3,1) .32s;
+}
+.colors.is-open .colors__close{ opacity:1; transform:translateY(0); }
+
+/* ── cursor ─────────────────────────────────────────────────────────────── */
+
+.cursor{
+  position:absolute; left:0; top:0;
+  width:0; height:0;
+  pointer-events:none;
+  z-index:50;
+  will-change: transform;
+}
+.cursor__dot{
+  position:absolute; left:-17px; top:-17px;
+  width:34px; height:34px; border-radius:50%;
+  background:#FFFFFF;
+  transition: transform .3s cubic-bezier(.22,.9,.3,1);
+}
+.cursor.is-small .cursor__dot{ transform:scale(.38); }
