@@ -30,12 +30,13 @@ addEventListener('resize', () => { k = fit(); });
 document.querySelector('.logo').innerHTML = LOGO_SVG;
 
 const svg = (s, cls) =>
-  `<svg class="${cls}" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}">
+  `<svg class="${cls}" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}"
+        style="--dy:${s.dy || 0}px">
      <path d="${s.d}" fill-rule="evenodd"/>
    </svg>`;
 
-itemsEl.innerHTML = ITEMS.map(it => `
-  <div class="item" data-id="${it.id}">
+itemsEl.innerHTML = ITEMS.map((it, i) => `
+  <div class="item" data-id="${it.id}" style="--i:${i}">
     <div class="item__box"></div>
     <div class="item__shape">
       ${svg(it.rest, 's-rest')}
@@ -51,6 +52,30 @@ itemEls.forEach(el => {
   el.addEventListener('mouseenter', () => el.classList.add('is-hot'));
   el.addEventListener('mouseleave', () => el.classList.remove('is-hot'));
 });
+
+/* ── the row slides one cell at a time ──────────────────────────────────── */
+
+const VISIBLE = 4;
+const LAST    = Math.max(0, ITEMS.length - VISIBLE);
+const picker  = document.querySelector('.page--picker');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+
+let pos = 0;
+
+function slide(to){
+  pos = Math.min(LAST, Math.max(0, to));
+  itemsEl.style.setProperty('--pos', pos);
+  // pinned left at the start, pinned right at the end, centred in between
+  picker.dataset.align = pos === 0 ? 'left' : pos === LAST ? 'right' : 'center';
+  prevBtn.classList.toggle('is-off', pos === 0);
+  nextBtn.classList.toggle('is-off', pos === LAST);
+  // an item that slid out from under the cursor must not stay lit
+  itemEls.forEach(el => el.classList.remove('is-hot'));
+}
+
+prevBtn.addEventListener('click', e => { e.stopPropagation(); slide(pos - 1); });
+nextBtn.addEventListener('click', e => { e.stopPropagation(); slide(pos + 1); });
 
 /* ── navigation ─────────────────────────────────────────────────────────── */
 
@@ -157,7 +182,7 @@ addEventListener('mousemove', e => {
   moveCursor();
 });
 
-const HOT = '.item, .nav__tab, .swatch, .colors__close, .next, .logo';
+const HOT = '.item, .nav__tab, .swatch, .colors__close, .arrow, .logo';
 document.addEventListener('mouseover', e => {
   const next = !!e.target.closest(HOT);
   if (next !== small) { small = next; cursor.classList.toggle('is-small', small); }
@@ -167,4 +192,5 @@ document.addEventListener('mouseover', e => {
 
 applyColors();
 paintTabs();
+slide(0);
 moveCursor();

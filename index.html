@@ -33,9 +33,16 @@
     <section class="page page--picker" data-page="picker">
       <h2 class="picker__title" data-title>Turn your image into</h2>
 
-      <div class="items" id="items"></div>
+      <div class="window" id="window"><div class="items" id="items"></div></div>
 
-      <button class="next" aria-label="Next">
+      <button class="arrow arrow--prev" id="prev" aria-label="Previous">
+        <svg viewBox="0 0 62 62" width="62" height="62" aria-hidden="true">
+          <circle cx="31" cy="31" r="31" fill="currentColor"/>
+          <path d="M26 17 L41 31 L26 45" fill="none" stroke="var(--bg)" stroke-width="7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="arrow arrow--next" id="next" aria-label="Next">
         <svg viewBox="0 0 62 62" width="62" height="62" aria-hidden="true">
           <circle cx="31" cy="31" r="31" fill="currentColor"/>
           <path d="M26 17 L41 31 L26 45" fill="none" stroke="var(--bg)" stroke-width="7"
