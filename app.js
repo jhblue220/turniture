@@ -29,18 +29,26 @@ addEventListener('resize', () => { k = fit(); });
 
 document.querySelector('.logo').innerHTML = LOGO_SVG;
 
-const svg = (s, cls) =>
-  `<svg class="${cls}" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}"
-        style="--dy:${s.dy || 0}px">
+const restSvg = s =>
+  `<svg class="s-rest" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}">
      <path d="${s.d}" fill-rule="evenodd"/>
+   </svg>`;
+
+/* The hover shape is a cluster of separate units, one <path> each, so the
+   camera / microphone can resize them one by one. overflow:visible lets a unit
+   grow past the cluster box without being clipped. */
+const clusterSvg = c =>
+  `<svg class="s-hover" viewBox="0 0 ${c.w} ${c.h}" width="${c.w}" height="${c.h}"
+        style="--dy:${c.dy || 0}px; overflow:visible">
+     ${c.units.map(() => '<path fill-rule="evenodd"/>').join('')}
    </svg>`;
 
 itemsEl.innerHTML = ITEMS.map((it, i) => `
   <div class="item" data-id="${it.id}" style="--i:${i}">
     <div class="item__box"></div>
     <div class="item__shape">
-      ${svg(it.rest, 's-rest')}
-      ${svg(it.hover, 's-hover')}
+      ${restSvg(it.rest)}
+      ${clusterSvg(it.cluster)}
     </div>
     <div class="item__label">${it.label}</div>
     <div class="item__size">${it.size}</div>
@@ -48,9 +56,72 @@ itemsEl.innerHTML = ITEMS.map((it, i) => `
 
 const itemEls = [...itemsEl.querySelectorAll('.item')];
 
+/* ── live shapes ────────────────────────────────────────────────────────────
+   Each unit keeps its centre and its anchored edge; only width and height
+   move. 0.5 means "nothing happening" and redraws the shape as measured from
+   the mockup, so a still room or a silent mic looks exactly like the
+   reference.                                                               */
+
+const SWING_H = 0.95;   // how far height reacts
+const SWING_W = 0.30;   // how far width reacts
+
+function paint(el, vals){
+  const c = ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster;
+  const paths = el.querySelectorAll('.s-hover path');
+  c.units.forEach((u, i) => {
+    const v  = vals[i] ?? 0.5;
+    const w  = u.w * (1 + SWING_W * (v - 0.5));
+    const h  = Math.min(c.h, Math.max(u.h * 0.3, u.h * (1 + SWING_H * (v - 0.5))));
+    const dx = u.x + (u.w - w) / 2;
+    const dy = c.anchor === 'bottom' ? c.h - h
+             : c.anchor === 'center' ? (u.y ?? 0) + (u.h - h) / 2
+             : 0;
+    const p = paths[i];
+    p.setAttribute('d', c.unit(w, h, u, c.h));
+    p.setAttribute('transform', `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
+  });
+}
+
+const neutral = n => new Array(n).fill(0.5);
+itemEls.forEach((el, i) => paint(el, neutral(ITEMS[i].cluster.units.length)));
+
+let frame = null;
+let settling = null;        // values easing back to neutral after a mouseleave
+
+function tick(){
+  const hot = itemEls.find(e => e.classList.contains('is-hot'));
+  if (hot) {
+    settling = null;
+    const n = ITEMS[+getComputedStyle(hot).getPropertyValue('--i')].cluster.units.length;
+    paint(hot, Sense.read(n));
+    frame = requestAnimationFrame(tick);
+    return;
+  }
+  if (settling) {                       // ease the shape back before stopping
+    const { el, vals } = settling;
+    let done = true;
+    for (let i = 0; i < vals.length; i++) {
+      vals[i] += (0.5 - vals[i]) * 0.2;
+      if (Math.abs(vals[i] - 0.5) > 0.004) done = false;
+    }
+    paint(el, vals);
+    if (!done) { frame = requestAnimationFrame(tick); return; }
+    paint(el, neutral(vals.length));
+    settling = null;
+  }
+  frame = null;
+}
+
+const startFrames = () => { if (frame === null) frame = requestAnimationFrame(tick); };
+
 itemEls.forEach(el => {
-  el.addEventListener('mouseenter', () => el.classList.add('is-hot'));
-  el.addEventListener('mouseleave', () => el.classList.remove('is-hot'));
+  el.addEventListener('mouseenter', () => { el.classList.add('is-hot'); startFrames(); });
+  el.addEventListener('mouseleave', () => {
+    el.classList.remove('is-hot');
+    const n = ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster.units.length;
+    settling = { el, vals: Sense.read(n).slice() };
+    startFrames();
+  });
 });
 
 /* ── the row slides one cell at a time ──────────────────────────────────── */
@@ -71,7 +142,10 @@ function slide(to){
   prevBtn.classList.toggle('is-off', pos === 0);
   nextBtn.classList.toggle('is-off', pos === LAST);
   // an item that slid out from under the cursor must not stay lit
-  itemEls.forEach(el => el.classList.remove('is-hot'));
+  itemEls.forEach((el, i) => {
+    el.classList.remove('is-hot');
+    paint(el, neutral(ITEMS[i].cluster.units.length));
+  });
 }
 
 prevBtn.addEventListener('click', e => { e.stopPropagation(); slide(pos - 1); });
@@ -84,8 +158,9 @@ function show(next){
   pages.forEach(p => p.classList.toggle('is-on',
     p.dataset.page === (next === 'home' ? 'home' : 'picker')));
   if (next !== 'home') titleEl.textContent = TITLES[next];
-  // the title sequence only runs while the main page is on screen
-  next === 'home' ? Intro.start() : Intro.stop();
+  // the title sequence only runs while the main page is on screen,
+  // and the camera / mic only while a picker page is
+  if (next === 'home') { Intro.start(); Sense.stop(); } else Intro.stop();
   paintTabs();
 }
 
@@ -99,6 +174,9 @@ tabs.forEach(tab => tab.addEventListener('click', e => {
   const t = tab.dataset.tab;
   if (t === 'colors') { colorsOpen ? closeColors() : openColors(); return; }
   show(t);
+  // the click is the user gesture the browser wants before it will prompt
+  if (t === 'images') Sense.use('camera');
+  if (t === 'sounds') Sense.use('mic');
 }));
 
 document.querySelector('.logo').addEventListener('click', e => {
