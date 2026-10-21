@@ -20,8 +20,11 @@ html,body{
 }
 
 body{
-  font-family:'Avenir Next','Avenir','Montserrat',system-ui,-apple-system,sans-serif;
-  font-weight:600;
+  /* Avenir first: it is the family with real Black (900) and Heavy (800).
+     Avenir Next stops at Heavy, so 900 there would silently fall back. */
+  font-family:'Avenir','Avenir Next','Montserrat',system-ui,-apple-system,sans-serif;
+  font-weight:900;
+  letter-spacing:-.04em;                    /* -4% everywhere */
   color:var(--fg);
   overflow:hidden;
   cursor:none;
@@ -61,10 +64,10 @@ a{ color:inherit; text-decoration:none; }
 }
 .nav__pre{
   position:relative; top:-11px;
-  font-size:24px; line-height:1; font-weight:500; letter-spacing:-.038em;
+  font-size:24px; line-height:1; font-weight:500;
 }
 .nav__tab{
-  font-size:57px; line-height:1; letter-spacing:-.041em;
+  font-size:57px; line-height:1; font-weight:900;
   transition: color .2s ease;
 }
 .nav__tab.is-on{ color:var(--on); }
@@ -78,7 +81,7 @@ a{ color:inherit; text-decoration:none; }
    Type is set at the 메인_1 hero size, centred on the artboard. */
 .intro{
   position:absolute; inset:0;
-  font-size:251px; line-height:1; font-weight:600;
+  font-size:251px; line-height:1; font-weight:900;
 }
 .intro__line{
   position:absolute; left:50%; top:50%;
@@ -99,26 +102,31 @@ a{ color:inherit; text-decoration:none; }
 }
 .intro__line.is-on .intro__fx{ transform:translate(-50%,-50%) scale(1); }
 
-#introTagline{ letter-spacing:-.021em; }
+
 
 /* The word is built from fixed-width cells so that re-dealing the typefaces
    swaps the glyph without the line jittering. intro.js keeps it centred by
    translating it half its own width, which is why this one is not -50%. */
 #introWord .intro__fx{
-  letter-spacing:0;
   transform:translate(0,-50%) scale(.975);
 }
 #introWord.is-on .intro__fx{ transform:translate(0,-50%) scale(1); }
-.word{ display:inline-block; transition: transform .16s ease-out; }
+.word{ display:inline-block; transition: transform .16s ease-out, letter-spacing .16s ease-out; }
+/* while a line tracks out to meet the next one's edges */
+.word.is-stretch{ transition: transform .62s cubic-bezier(.4,0,.2,1), letter-spacing .62s cubic-bezier(.4,0,.2,1); }
+#introTagline .intro__fx.is-stretch{ transition: transform .62s cubic-bezier(.2,.8,.25,1), letter-spacing .62s cubic-bezier(.4,0,.2,1); }
+.is-instant{ transition:none !important; }
 .word .ch{ display:inline-block; text-align:center; }
 
-#introLogo .intro__fx{ width:1200px; color:var(--fg); }
+/* wider than "Turn It Yours" sets naturally, so the tagline has to track out
+   to reach the wordmark's edges before it dissolves into it */
+#introLogo .intro__fx{ width:1700px; color:var(--fg); }
 #introLogo svg{ display:block; width:100%; height:auto; }
 
 /* images / sounds page */
 .picker__title{
   position:absolute; left:30px; top:203px;
-  font-size:140px; line-height:1; font-weight:600; letter-spacing:-.017em;
+  font-size:140px; line-height:1; font-weight:900;
   white-space:nowrap;
 }
 
@@ -185,13 +193,13 @@ a{ color:inherit; text-decoration:none; }
 .item__label{
   position:absolute; left:0; right:0; top:404px;
   text-align:center;
-  font-size:61px; line-height:1; letter-spacing:-.044em;
+  font-size:61px; line-height:1; font-weight:900;
   transition: color .2s ease;
 }
 .item__size{
   position:absolute; left:0; right:0; top:464px;
   text-align:center;
-  font-size:44px; line-height:1; font-weight:500; letter-spacing:-.028em;
+  font-size:44px; line-height:1; font-weight:800;   /* Heavy */
   color:var(--bg);
   opacity:0;
   transition: opacity .2s ease, color .35s ease;

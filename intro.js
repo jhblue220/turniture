@@ -37,7 +37,8 @@ const FONTS = [
 const T = {
   letter:  125,   // gap between letters appearing
   shuffle:  85,   // how often the typefaces re-deal
-  settled: 950,   // hold on the finished word, in Avenir
+  settled: 750,   // hold on the finished word, in Avenir
+  stretch: 620,   // tracking out until the edges meet the next line
   cross:   460,   // one line leaving / the next arriving
   tagline:1250,   // hold on "Turn It Yours"
   logo:   1700,   // hold on the wordmark
@@ -72,7 +73,7 @@ const Intro = (() => {
   function measure(){
     const c = document.createElement('canvas').getContext('2d');
     const fs = parseFloat(getComputedStyle(lineEls.word).fontSize);
-    c.font = `600 ${fs}px "Avenir Next"`;
+    c.font = `900 ${fs}px Avenir`;
     return [...WORD].map(ch => ({ ch, w: c.measureText(ch).width }));
   }
 
@@ -84,10 +85,10 @@ const Intro = (() => {
   function calibrate(){
     const c = document.createElement('canvas').getContext('2d');
     const cap = font => {
-      c.font = `600 100px ${font}`;
+      c.font = `900 100px ${font}`;
       return c.measureText('H').actualBoundingBoxAscent || 0;
     };
-    const ref = cap('"Avenir Next"') || 71;
+    const ref = cap('Avenir') || 71;
     sizeOf = new Map(FONTS.map(f => {
       const h = cap(f);
       const k = h ? ref / h : 1;
@@ -95,8 +96,23 @@ const Intro = (() => {
     }));
   }
 
-  function recentre(){
-    wordEl.style.transform = `translateX(${-wordEl.offsetWidth / 2}px)`;
+  /* offsetWidth carries one trailing letter-space after the last glyph, so
+     strip it to get the width the eye actually reads. */
+  const ink = el => el.offsetWidth - (parseFloat(getComputedStyle(el).letterSpacing) || 0);
+
+  function recentre(w){
+    wordEl.style.transform = `translateX(${-(w ?? ink(wordEl)) / 2}px)`;
+  }
+
+  /* Track a line out (or in) until it spans exactly `target`, so the line that
+     replaces it lands on the same left and right edges. */
+  async function stretchTo(el, target, n, my, centred){
+    el.classList.add('is-stretch');
+    const ls = parseFloat(getComputedStyle(el).letterSpacing) || 0;
+    el.style.letterSpacing = `${ls + (target - ink(el)) / (n - 1)}px`;
+    if (centred) recentre(target);
+    await wait(T.stretch, my);
+    el.classList.remove('is-stretch');
   }
 
   function deal(spans){
@@ -113,9 +129,21 @@ const Intro = (() => {
 
   async function sequence(my){
     const cells = measure();
+    const tagFx = lineEls.tagline.querySelector('.intro__fx');
+    const logoFx = lineEls.logo.querySelector('.intro__fx');
 
-    // 1 — type it out, reshuffling the faces as it goes
+    // 1 — clear anything the previous round (or an interrupted one) left behind,
+    //     with transitions off so the new round starts from a clean frame
     wordEl.innerHTML = '';
+    [wordEl, tagFx].forEach(el => {
+      el.classList.remove('is-stretch');
+      el.classList.add('is-instant');
+      el.style.letterSpacing = '';
+    });
+    wordEl.style.transform = '';
+    void wordEl.offsetWidth;                       // flush
+    [wordEl, tagFx].forEach(el => el.classList.remove('is-instant'));
+
     recentre();
     show('word');
     const spans = [];
@@ -133,16 +161,19 @@ const Intro = (() => {
       await wait(T.letter, my);
     }
 
-    // 2 — everything lands on Avenir
+    // 2 — everything lands on Avenir Black
     clearInterval(shuffleTimer); shuffleTimer = null;
     spans.forEach(s => { s.style.fontFamily = ''; s.style.fontSize = ''; });
+    recentre();
     await wait(T.settled, my);
 
-    // 3 — hand over to the tagline
+    // 3 — track out until the word spans the tagline, then hand over
+    await stretchTo(wordEl, ink(tagFx), WORD.length, my, true);
     show('tagline');
     await wait(T.cross + T.tagline, my);
 
-    // 4 — and dissolve into the wordmark
+    // 4 — the tagline does the same against the wordmark, then dissolves into it
+    await stretchTo(tagFx, logoFx.offsetWidth, tagFx.textContent.length, my, false);
     show('logo');
     await wait(T.cross + T.logo, my);
 
