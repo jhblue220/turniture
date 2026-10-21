@@ -11,20 +11,25 @@
 | `styles.css` | 레이아웃과 색. 1920 × 1080 아트보드 좌표를 그대로 사용 |
 | `app.js` | 탭 전환, hover, Color 패널, 커스텀 커서 |
 | `shapes.js` | 가구 실루엣 SVG 패스 + 컬러 팔레트 |
-| `assets/logo.svg` | 로고 (`fill`을 `currentColor`로 바꿔 색이 따라오게 함) |
+| `logo.js` | 로고 SVG를 문자열로 inline. `fill="currentColor"`라 색이 따라옴 |
+| `assets/logo.svg` | 같은 로고의 파일 버전 (참고용) |
 | `Reference/` | 작업 기준이 된 시안 이미지 |
 
 ## 화면
 
 - **메인** — `Reference/메인_1.png` 배열 그대로. 로고(좌상단) · 네비게이션(우상단) · `Turn It Yours`
-- **Images / Sounds** — 내용은 동일하고 탭과 제목만 다름
-  - 기본 제목: `Change your images` / `Change your sounds`
+  - 좌상단 로고를 누르면 어디서든 메인으로 돌아옵니다
+- **Image / Sound** — 내용은 동일하고 탭과 제목만 다름
+  - 제목은 탭마다 고정: `Turn your image into` / `Turn your sound into`
   - 항목(Side Table · Tray · Wall Shelves · Stool)에 마우스를 올리면
-    제목이 `What do you want?`로 바뀌고, 박스가 가운데에서 부드럽게 열리면서
-    상세 형상과 치수가 나타납니다
+    박스가 가운데에서 부드럽게 열리면서 상세 형상과 치수가 나타납니다
 - **Colors** — 8개 색상이 위에서 아래로 차례대로 내려옵니다
   - `1` = 글자·도형 색 (foreground), `2` = 배경 색 (background)
   - 색을 누를 때마다 `1` → `2` → `1` … 순서로 지정됩니다
+  - 칩 뒤쪽 배경에는 progressive blur가 걸립니다 (왼쪽 0 → 오른쪽 최대).
+    세기는 `styles.css`의 `--blur-max` 한 값으로 조절합니다
+  - 칩은 보이는 크기(60px)를 유지한 채 클릭 영역만 98px 원으로 넓혔습니다
+    (칩 간격이 100px이라 서로 겹치지 않습니다)
   - 맨 아래 X, `Colors` 탭, 또는 빈 영역을 클릭하면 닫힙니다
 
 ## 좌표계
@@ -40,11 +45,12 @@ python3 serve.py
 
 → http://localhost:4173
 
-`file://`로 열면 브라우저 보안 정책 때문에 로고 마스크가 보이지 않을 수 있으니 위 방법을 권합니다.
+로고는 inline SVG라 `file://`로 열어도 보이지만, 서버로 보는 쪽을 권합니다.
 
 ## 메모
 
 - 본문 서체는 macOS의 **Avenir Next**를 쓰고, 없는 환경에서는 Google Fonts의 Montserrat로 대체됩니다.
 - 로고는 `Reference/Logo.svg`를 사용했습니다. (요청 메시지에는 `Logo.png`라고 적혀 있었지만 폴더에는 svg만 있었습니다. 벡터라 더 선명합니다.)
+- 로고 위치·크기는 시안 그대로 `left 30px / top 27px / 369 × 54px`입니다.
 - 색상 값은 시안 PNG에서 직접 픽셀을 추출해 맞췄습니다. 기본값은 `#00A698`(1번) / `#6F5D00`(2번).
 - `About` 탭은 요청에 따라 넣지 않았습니다.

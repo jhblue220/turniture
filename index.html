@@ -18,8 +18,8 @@
       <a class="logo" href="#" data-go="home" aria-label="TURNitURE home"></a>
       <nav class="nav">
         <span class="nav__pre">You can change</span>
-        <button class="nav__tab" data-tab="images">Images</button>
-        <button class="nav__tab" data-tab="sounds">Sounds</button>
+        <button class="nav__tab" data-tab="images">Image</button>
+        <button class="nav__tab" data-tab="sounds">Sound</button>
         <button class="nav__tab" data-tab="colors">Colors</button>
       </nav>
     </header>
@@ -31,7 +31,7 @@
 
     <!-- ── images / sounds page ─────────────────────────── -->
     <section class="page page--picker" data-page="picker">
-      <h2 class="picker__title"><span data-title>Change your images</span></h2>
+      <h2 class="picker__title" data-title>Turn your image into</h2>
 
       <div class="items" id="items"></div>
 
@@ -46,6 +46,9 @@
 
     <!-- ── color panel ──────────────────────────────────── -->
     <aside class="colors" id="colors" aria-hidden="true">
+      <div class="colors__blur" aria-hidden="true">
+        <div></div><div></div><div></div><div></div><div></div><div></div>
+      </div>
       <div class="colors__list" id="swatches"></div>
       <button class="colors__close" id="colorsClose" aria-label="Close colors">
         <svg viewBox="0 0 60 60" width="60" height="60" aria-hidden="true">
@@ -58,6 +61,7 @@
     <div class="cursor" id="cursor"><div class="cursor__dot"></div></div>
   </div>
 </div>
+<script src="logo.js"></script>
 <script src="shapes.js"></script>
 <script src="app.js"></script>
 </body>

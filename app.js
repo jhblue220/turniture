@@ -8,7 +8,7 @@ const titleEl = document.querySelector('[data-title]');
 const pages   = document.querySelectorAll('.page');
 const tabs    = document.querySelectorAll('.nav__tab');
 
-const TITLES = { images: 'Change your images', sounds: 'Change your sounds' };
+const TITLES = { images: 'Turn your image into', sounds: 'Turn your sound into' };
 
 let page = 'home';          // 'home' | 'images' | 'sounds'
 let colorsOpen = false;
@@ -26,6 +26,8 @@ let k = fit();
 addEventListener('resize', () => { k = fit(); });
 
 /* ── items ──────────────────────────────────────────────────────────────── */
+
+document.querySelector('.logo').innerHTML = LOGO_SVG;
 
 const svg = (s, cls) =>
   `<svg class="${cls}" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}">
@@ -46,16 +48,8 @@ itemsEl.innerHTML = ITEMS.map(it => `
 const itemEls = [...itemsEl.querySelectorAll('.item')];
 
 itemEls.forEach(el => {
-  el.addEventListener('mouseenter', () => {
-    el.classList.add('is-hot');
-    titleEl.textContent = 'What do you want?';
-  });
-  el.addEventListener('mouseleave', () => {
-    el.classList.remove('is-hot');
-    if (!itemEls.some(e => e.classList.contains('is-hot'))) {
-      titleEl.textContent = TITLES[page] || TITLES.images;
-    }
-  });
+  el.addEventListener('mouseenter', () => el.classList.add('is-hot'));
+  el.addEventListener('mouseleave', () => el.classList.remove('is-hot'));
 });
 
 /* ── navigation ─────────────────────────────────────────────────────────── */
@@ -88,8 +82,9 @@ document.querySelector('.logo').addEventListener('click', e => {
 /* ── colour panel ───────────────────────────────────────────────────────── */
 
 swatchesEl.innerHTML = PALETTE.map((c, i) => `
-  <button class="swatch" data-i="${i}" style="background:${c}; top:${i * 100}px"
-          aria-label="colour ${i + 1}"><span class="swatch__n"></span></button>`).join('');
+  <button class="swatch" data-i="${i}" style="top:${i * 100 - 49}px" aria-label="colour ${i + 1}">
+    <span class="swatch__chip" style="background:${c}"><span class="swatch__n"></span></span>
+  </button>`).join('');
 
 const swatchEls = [...swatchesEl.querySelectorAll('.swatch')];
 
