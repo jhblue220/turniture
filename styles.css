@@ -74,12 +74,46 @@ a{ color:inherit; text-decoration:none; }
 .page{ position:absolute; inset:0; display:none; }
 .page.is-on{ display:block; }
 
-/* main page — arrangement taken from 메인_1.png */
-.hero{
-  position:absolute; left:93px; top:558px;
-  font-size:251px; line-height:1; font-weight:600; letter-spacing:-.021em;
-  white-space:nowrap;
+/* main page — the looping title sequence (see intro.js).
+   Type is set at the 메인_1 hero size, centred on the artboard. */
+.intro{
+  position:absolute; inset:0;
+  font-size:251px; line-height:1; font-weight:600;
 }
+.intro__line{
+  position:absolute; left:50%; top:50%;
+  white-space:nowrap;
+  opacity:0; visibility:hidden;
+  transition: opacity .46s ease, visibility 0s linear .46s;
+}
+.intro__line.is-on{
+  opacity:1; visibility:visible;
+  transition: opacity .46s ease, visibility 0s;
+}
+/* a slight ease-up as each line arrives, so the hand-overs read as one move */
+.intro__fx{
+  display:block;
+  transform:translate(-50%,-50%) scale(.975);
+  transform-origin:center;
+  transition: transform .62s cubic-bezier(.2,.8,.25,1);
+}
+.intro__line.is-on .intro__fx{ transform:translate(-50%,-50%) scale(1); }
+
+#introTagline{ letter-spacing:-.021em; }
+
+/* The word is built from fixed-width cells so that re-dealing the typefaces
+   swaps the glyph without the line jittering. intro.js keeps it centred by
+   translating it half its own width, which is why this one is not -50%. */
+#introWord .intro__fx{
+  letter-spacing:0;
+  transform:translate(0,-50%) scale(.975);
+}
+#introWord.is-on .intro__fx{ transform:translate(0,-50%) scale(1); }
+.word{ display:inline-block; transition: transform .16s ease-out; }
+.word .ch{ display:inline-block; text-align:center; }
+
+#introLogo .intro__fx{ width:1200px; color:var(--fg); }
+#introLogo svg{ display:block; width:100%; height:auto; }
 
 /* images / sounds page */
 .picker__title{

@@ -84,6 +84,8 @@ function show(next){
   pages.forEach(p => p.classList.toggle('is-on',
     p.dataset.page === (next === 'home' ? 'home' : 'picker')));
   if (next !== 'home') titleEl.textContent = TITLES[next];
+  // the title sequence only runs while the main page is on screen
+  next === 'home' ? Intro.start() : Intro.stop();
   paintTabs();
 }
 
@@ -194,3 +196,4 @@ applyColors();
 paintTabs();
 slide(0);
 moveCursor();
+Intro.start();

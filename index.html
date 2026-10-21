@@ -6,7 +6,7 @@
 <title>TURNitURE — Turn It Yours</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Playfair+Display:wght@700&family=Archivo+Black&family=Space+Mono:wght@700&family=Caveat:wght@700&family=Abril+Fatface&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,7 +26,11 @@
 
     <!-- ── main page ────────────────────────────────────── -->
     <section class="page page--home is-on" data-page="home">
-      <h1 class="hero">Turn It Yours</h1>
+      <h1 class="intro" id="intro">
+        <span class="intro__line" id="introWord"><span class="intro__fx"><span class="word" id="word"></span></span></span>
+        <span class="intro__line" id="introTagline"><span class="intro__fx">Turn It Yours</span></span>
+        <span class="intro__line" id="introLogo"><span class="intro__fx"></span></span>
+      </h1>
     </section>
 
     <!-- ── images / sounds page ─────────────────────────── -->
@@ -70,6 +74,7 @@
 </div>
 <script src="logo.js"></script>
 <script src="shapes.js"></script>
+<script src="intro.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
