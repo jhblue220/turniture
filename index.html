@@ -55,6 +55,35 @@
       </button>
     </section>
 
+    <!-- ── make page (step 2 · 3) ───────────────────────── -->
+    <section class="page page--make" data-page="make">
+      <h2 class="make__title">Let&rsquo;s Make <span data-make-name></span></h2>
+
+      <!-- step 2 — pick an input -->
+      <div class="make__io" data-step="io">
+        <button class="drop" data-kind="file">
+          <span class="drop__label" data-drop-label>Drop Image</span>
+          <input type="file" hidden data-file>
+        </button>
+        <span class="make__or">OR</span>
+        <button class="drop" data-kind="live">
+          <video class="drop__cam" playsinline muted hidden></video>
+          <span class="drop__label" data-live-label>Live Image</span>
+        </button>
+      </div>
+
+      <!-- step 3 — the result -->
+      <div class="make__out" data-step="out">
+        <div class="views">
+          <button class="vbtn is-on" data-view="top">Top View</button>
+          <button class="vbtn" data-view="iso">3D</button>
+          <button class="vbtn vbtn--again" data-again>Again</button>
+        </div>
+        <canvas class="make__canvas" data-canvas></canvas>
+        <canvas class="make__timeline" data-timeline></canvas>
+      </div>
+    </section>
+
     <!-- ── color panel ──────────────────────────────────── -->
     <aside class="colors" id="colors" aria-hidden="true">
       <div class="colors__blur" aria-hidden="true">
@@ -75,6 +104,7 @@
 <script src="logo.js"></script>
 <script src="shapes.js"></script>
 <script src="intro.js"></script>
+<script src="make.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

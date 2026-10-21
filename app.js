@@ -194,6 +194,11 @@ const startFrames = () => {
 };
 
 itemEls.forEach(el => {
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    // Wall Shelves / Stool / Pendant / Shelves are not built yet
+    if (Make.open(el.dataset.id, page)) show(page, true);
+  });
   el.addEventListener('mouseenter', () => {
     el.classList.add('is-hot');
     reset(el);                                 // always begin at the mockup
@@ -239,14 +244,19 @@ nextBtn.addEventListener('click', e => { e.stopPropagation(); slide(pos + 1); })
 
 /* ── navigation ─────────────────────────────────────────────────────────── */
 
-function show(next){
+/* 'home' | 'images' | 'sounds' show their own page; 'make' keeps whichever
+   picker tab we came from lit, and runs the palette the other way round. */
+function show(next, making){
+  if (!making) Make.close();
   page = next;
-  pages.forEach(p => p.classList.toggle('is-on',
-    p.dataset.page === (next === 'home' ? 'home' : 'picker')));
+  const shown = making ? 'make' : next === 'home' ? 'home' : 'picker';
+  pages.forEach(p => p.classList.toggle('is-on', p.dataset.page === shown));
+  document.documentElement.classList.toggle('is-flip', !!making);
   if (next !== 'home') titleEl.textContent = TITLES[next];
   // the title sequence only runs while the main page is on screen
   next === 'home' ? Intro.start() : Intro.stop();
   paintTabs();
+  if (making) Make.redraw();
 }
 
 function paintTabs(){
@@ -285,9 +295,10 @@ function paintSwatches(){
 
 function applyColors(){
   const r = document.documentElement.style;
-  r.setProperty('--fg', PALETTE[slots[1]]);
-  r.setProperty('--bg', PALETTE[slots[2]]);
+  r.setProperty('--c1', PALETTE[slots[1]]);
+  r.setProperty('--c2', PALETTE[slots[2]]);
   paintSwatches();
+  Make.redraw();        // canvas pixels do not follow CSS variables
 }
 
 swatchEls.forEach(el => el.addEventListener('click', e => {

@@ -5,11 +5,15 @@
    ========================================================================== */
 
 :root{
-  --fg: #00A698;   /* colour slot 1 — type, shapes, boxes */
-  --bg: #6F5D00;   /* colour slot 2 — page background     */
+  --c1: #00A698;   /* colour slot 1 — type, shapes, boxes */
+  --c2: #6F5D00;   /* colour slot 2 — page background     */
+  --fg: var(--c1);
+  --bg: var(--c2);
   --on: #FFFFFF;   /* active tab                          */
   --k : 1;         /* artboard scale, set from app.js     */
 }
+/* the "Let's Make" step runs the palette the other way round, as in Tray_01 */
+:root.is-flip{ --fg: var(--c2); --bg: var(--c1); }
 
 *{ margin:0; padding:0; box-sizing:border-box; cursor:none; }
 
@@ -304,3 +308,63 @@ a{ color:inherit; text-decoration:none; }
   transition: transform .3s cubic-bezier(.22,.9,.3,1);
 }
 .cursor.is-small .cursor__dot{ transform:scale(.38); }
+
+
+/* ══ make page ═══════════════════════════════════════════════════════════════
+   Step 2 picks an input (drop a file, or use the camera / microphone), step 3
+   shows what came out. Geometry is taken from Tray_01.png.                   */
+
+.make__title{
+  position:absolute; left:0; right:0; top:136px;
+  text-align:center;
+  font-size:140px; line-height:1; font-weight:900;
+  white-space:nowrap;
+}
+
+.make__io{
+  position:absolute; left:155px; top:337px;
+  width:1568px; height:694px;          /* 694 + 180 + 694, as in Tray_01 */
+  display:flex; align-items:center; justify-content:space-between;
+}
+.make__or{ font-size:52px; line-height:1; font-weight:900; }
+
+.drop{
+  position:relative;
+  width:694px; height:694px;
+  border:3px solid var(--fg);
+  display:grid; place-items:center;
+  overflow:hidden;
+  transition: background-color .18s ease, color .18s ease;
+}
+.drop:hover, .drop.is-armed{ background:var(--fg); color:var(--bg); }
+.drop__label{ font-size:52px; line-height:1; font-weight:900; position:relative; z-index:1; }
+.drop__cam{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; transform:scaleX(-1);        /* mirrored, like a mirror */
+  filter:grayscale(1) contrast(1.1);
+}
+.drop.is-busy{ pointer-events:none; }
+
+.make__out{ position:absolute; inset:0; display:none; }
+.make__out.is-on{ display:block; }
+.make__io.is-off{ display:none; }
+
+.views{
+  position:absolute; right:197px; top:300px;
+  display:flex; gap:26px; align-items:baseline;
+}
+.vbtn{
+  font-size:44px; line-height:1; font-weight:900;
+  opacity:.42; transition: opacity .18s ease;
+}
+.vbtn.is-on{ opacity:1; }
+.vbtn--again{ font-size:34px; }
+
+.make__canvas{
+  position:absolute; left:155px; top:372px;
+  width:1568px; height:525px;
+}
+.make__timeline{
+  position:absolute; left:155px; top:925px;
+  width:1568px; height:96px;
+}
