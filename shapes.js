@@ -8,8 +8,10 @@
                time while the arrangement stays put (see sense.js).
 
    A unit is drawn into its own w x h box with the origin top-left; `anchor` says
-   which edge it keeps while it resizes. `dy` nudges a cluster below the shared
-   baseline, where the reference drew it lower. */
+   which edge it keeps while it resizes, and `row` groups the units that sit
+   side by side (the rings are the only cluster with more than one row).
+   `dy` nudges a cluster below the shared baseline, where the reference drew it
+   lower. */
 
 const UNIT = {
   // Side Table — a bar with a rounded, dripping bottom
@@ -105,9 +107,9 @@ const ITEMS = [
     cluster: {
       w: 218, h: 317, anchor: 'center', unit: UNIT.ring,
       units: [
-        { x: 0,   y: 0,   w: 112, h: 112 }, { x: 104, y: 2,   w: 104, h: 104 },
-        { x: 2,   y: 96,  w: 94,  h: 94 },  { x: 92,  y: 90,  w: 126, h: 126 },
-        { x: 0,   y: 191, w: 126, h: 126 }, { x: 112, y: 215, w: 102, h: 102 }
+        { row: 0, x: 0,   y: 0,   w: 112, h: 112 }, { row: 0, x: 104, y: 2,   w: 104, h: 104 },
+        { row: 1, x: 2,   y: 96,  w: 94,  h: 94 },  { row: 1, x: 92,  y: 90,  w: 126, h: 126 },
+        { row: 2, x: 0,   y: 191, w: 126, h: 126 }, { row: 2, x: 112, y: 215, w: 102, h: 102 }
       ]
     }
   }

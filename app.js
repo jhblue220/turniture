@@ -67,21 +67,53 @@ const SWING_W = 0.30;   // how far width may
 const clusterOf = el => ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster;
 const rest = n => new Array(n).fill(0.5);
 
+/* Group the units that sit side by side and remember the gap the mockup left
+   between neighbours — zero for the bars, a slight overlap for the rings. Rows
+   are repacked from those gaps every frame, so a unit changing width pushes its
+   neighbours along instead of opening a seam. The row as a whole stays centred
+   on where the mockup put it, so only the outer edges move. */
+ITEMS.forEach(it => {
+  const c = it.cluster;
+  const byRow = new Map();
+  c.units.forEach((u, i) => {
+    const r = u.row ?? 0;
+    (byRow.get(r) ?? byRow.set(r, []).get(r)).push(i);
+  });
+  c.rows = [...byRow.values()].map(idx => {
+    idx.sort((a, b) => c.units[a].x - c.units[b].x);
+    const gaps = idx.map((i, k) => k === 0 ? 0
+      : c.units[i].x - (c.units[idx[k - 1]].x + c.units[idx[k - 1]].w));
+    const first = c.units[idx[0]], last = c.units[idx[idx.length - 1]];
+    return { idx, gaps, centre: (first.x + last.x + last.w) / 2 };
+  });
+});
+
 function paint(el, sw, sh){
   const c = clusterOf(el);
   const paths = el.querySelectorAll('.s-hover path');
-  c.units.forEach((u, i) => {
-    const w = u.w * (1 + SWING_W * ((sw[i] ?? 0.5) - 0.5));
-    const h = Math.min(c.h, Math.max(u.h * 0.3,
-                       u.h * (1 + SWING_H * ((sh[i] ?? 0.5) - 0.5))));
-    const dx = u.x + (u.w - w) / 2;
-    const dy = c.anchor === 'bottom' ? c.h - h
-             : c.anchor === 'center' ? (u.y ?? 0) + (u.h - h) / 2
-             : 0;
-    const p = paths[i];
-    p.setAttribute('d', c.unit(w, h, u, c.h));
-    p.setAttribute('transform', `translate(${dx.toFixed(2)},${dy.toFixed(2)})`);
-  });
+
+  const size = c.units.map((u, i) => ({
+    w: u.w * (1 + SWING_W * ((sw[i] ?? 0.5) - 0.5)),
+    h: Math.min(c.h, Math.max(u.h * 0.3,
+                u.h * (1 + SWING_H * ((sh[i] ?? 0.5) - 0.5))))
+  }));
+
+  for (const row of c.rows) {
+    const span = row.idx.reduce((n, i) => n + size[i].w, 0)
+               + row.gaps.reduce((a, b) => a + b, 0);
+    let x = row.centre - span / 2;
+    for (let k = 0; k < row.idx.length; k++) {
+      const i = row.idx[k], u = c.units[i], { w, h } = size[i];
+      x += row.gaps[k];
+      const dy = c.anchor === 'bottom' ? c.h - h
+               : c.anchor === 'center' ? (u.y ?? 0) + (u.h - h) / 2
+               : 0;
+      const p = paths[i];
+      p.setAttribute('d', c.unit(w, h, u, c.h));
+      p.setAttribute('transform', `translate(${x.toFixed(2)},${dy.toFixed(2)})`);
+      x += w;
+    }
+  }
 }
 
 /* ── drift ──────────────────────────────────────────────────────────────────
