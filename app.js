@@ -58,20 +58,22 @@ const itemEls = [...itemsEl.querySelectorAll('.item')];
 
 /* ── live shapes ────────────────────────────────────────────────────────────
    Each unit keeps its centre and its anchored edge; only width and height
-   move. 0.5 means "nothing happening" and redraws the shape as measured from
-   the mockup, so a still room or a silent mic looks exactly like the
-   reference.                                                               */
+   move, and the two move independently. 0.5 is the resting value and redraws
+   the cluster exactly as measured from the mockup.                         */
 
-const SWING_H = 0.95;   // how far height reacts
-const SWING_W = 0.30;   // how far width reacts
+const SWING_H = 0.95;   // how far height may stray from the mockup
+const SWING_W = 0.30;   // how far width may
 
-function paint(el, vals){
-  const c = ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster;
+const clusterOf = el => ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster;
+const rest = n => new Array(n).fill(0.5);
+
+function paint(el, sw, sh){
+  const c = clusterOf(el);
   const paths = el.querySelectorAll('.s-hover path');
   c.units.forEach((u, i) => {
-    const v  = vals[i] ?? 0.5;
-    const w  = u.w * (1 + SWING_W * (v - 0.5));
-    const h  = Math.min(c.h, Math.max(u.h * 0.3, u.h * (1 + SWING_H * (v - 0.5))));
+    const w = u.w * (1 + SWING_W * ((sw[i] ?? 0.5) - 0.5));
+    const h = Math.min(c.h, Math.max(u.h * 0.3,
+                       u.h * (1 + SWING_H * ((sh[i] ?? 0.5) - 0.5))));
     const dx = u.x + (u.w - w) / 2;
     const dy = c.anchor === 'bottom' ? c.h - h
              : c.anchor === 'center' ? (u.y ?? 0) + (u.h - h) / 2
@@ -82,44 +84,93 @@ function paint(el, vals){
   });
 }
 
-const neutral = n => new Array(n).fill(0.5);
-itemEls.forEach((el, i) => paint(el, neutral(ITEMS[i].cluster.units.length)));
+/* ── drift ──────────────────────────────────────────────────────────────────
+   While an item is hovered each unit wanders on its own: width and height
+   each ease towards a fresh random target, each on its own clock, so the
+   cluster keeps reshuffling instead of pulsing in unison. Hovering always
+   starts from the mockup proportions and drifts out from there.            */
 
-let frame = null;
-let settling = null;        // values easing back to neutral after a mouseleave
+const LEG = [380, 1100];                       // ms to travel to one target
+const ease = t => t * t * (3 - 2 * t);
+const chan = () => ({ from: 0.5, to: 0.5, t: 1, dur: 1 });
 
-function tick(){
+function advance(c, dt){
+  c.t += dt / c.dur;
+  if (c.t >= 1) {
+    c.from = c.to;
+    c.to   = Math.random();
+    c.dur  = LEG[0] + Math.random() * (LEG[1] - LEG[0]);
+    c.t    = 0;
+  }
+  return c.from + (c.to - c.from) * ease(c.t);
+}
+
+const drifts = new Map();                      // item element -> its channels
+
+function reset(el){
+  const n = clusterOf(el).units.length;
+  const d = {
+    w: Array.from({ length: n }, chan),
+    h: Array.from({ length: n }, chan),
+    sw: rest(n), sh: rest(n)
+  };
+  drifts.set(el, d);
+  return d;
+}
+
+itemEls.forEach((el, i) => {
+  const n = ITEMS[i].cluster.units.length;
+  paint(el, rest(n), rest(n));
+});
+
+let frame = null, last = 0, settling = null;
+
+function tick(now){
+  const dt = last ? Math.min(64, now - last) : 16;
+  last = now;
+
   const hot = itemEls.find(e => e.classList.contains('is-hot'));
   if (hot) {
     settling = null;
-    const n = ITEMS[+getComputedStyle(hot).getPropertyValue('--i')].cluster.units.length;
-    paint(hot, Sense.read(n));
+    const d = drifts.get(hot) || reset(hot);
+    d.sw = d.w.map(c => advance(c, dt));
+    d.sh = d.h.map(c => advance(c, dt));
+    paint(hot, d.sw, d.sh);
     frame = requestAnimationFrame(tick);
     return;
   }
-  if (settling) {                       // ease the shape back before stopping
-    const { el, vals } = settling;
+
+  if (settling) {                              // ease back to the mockup, then stop
+    const { el, sw, sh } = settling;
     let done = true;
-    for (let i = 0; i < vals.length; i++) {
-      vals[i] += (0.5 - vals[i]) * 0.2;
-      if (Math.abs(vals[i] - 0.5) > 0.004) done = false;
-    }
-    paint(el, vals);
+    for (const a of [sw, sh])
+      for (let i = 0; i < a.length; i++) {
+        a[i] += (0.5 - a[i]) * 0.18;
+        if (Math.abs(a[i] - 0.5) > 0.004) done = false;
+      }
+    paint(el, sw, sh);
     if (!done) { frame = requestAnimationFrame(tick); return; }
-    paint(el, neutral(vals.length));
+    paint(el, rest(sw.length), rest(sh.length));
     settling = null;
   }
   frame = null;
+  last = 0;
 }
 
-const startFrames = () => { if (frame === null) frame = requestAnimationFrame(tick); };
+const startFrames = () => {
+  if (frame === null) { last = 0; frame = requestAnimationFrame(tick); }
+};
 
 itemEls.forEach(el => {
-  el.addEventListener('mouseenter', () => { el.classList.add('is-hot'); startFrames(); });
+  el.addEventListener('mouseenter', () => {
+    el.classList.add('is-hot');
+    reset(el);                                 // always begin at the mockup
+    startFrames();
+  });
   el.addEventListener('mouseleave', () => {
     el.classList.remove('is-hot');
-    const n = ITEMS[+getComputedStyle(el).getPropertyValue('--i')].cluster.units.length;
-    settling = { el, vals: Sense.read(n).slice() };
+    const d = drifts.get(el) || reset(el);
+    settling = { el, sw: d.sw.slice(), sh: d.sh.slice() };
     startFrames();
   });
 });
@@ -142,9 +193,12 @@ function slide(to){
   prevBtn.classList.toggle('is-off', pos === 0);
   nextBtn.classList.toggle('is-off', pos === LAST);
   // an item that slid out from under the cursor must not stay lit
+  settling = null;
   itemEls.forEach((el, i) => {
     el.classList.remove('is-hot');
-    paint(el, neutral(ITEMS[i].cluster.units.length));
+    drifts.delete(el);
+    const n = ITEMS[i].cluster.units.length;
+    paint(el, rest(n), rest(n));
   });
 }
 
@@ -158,9 +212,8 @@ function show(next){
   pages.forEach(p => p.classList.toggle('is-on',
     p.dataset.page === (next === 'home' ? 'home' : 'picker')));
   if (next !== 'home') titleEl.textContent = TITLES[next];
-  // the title sequence only runs while the main page is on screen,
-  // and the camera / mic only while a picker page is
-  if (next === 'home') { Intro.start(); Sense.stop(); } else Intro.stop();
+  // the title sequence only runs while the main page is on screen
+  next === 'home' ? Intro.start() : Intro.stop();
   paintTabs();
 }
 
@@ -174,9 +227,6 @@ tabs.forEach(tab => tab.addEventListener('click', e => {
   const t = tab.dataset.tab;
   if (t === 'colors') { colorsOpen ? closeColors() : openColors(); return; }
   show(t);
-  // the click is the user gesture the browser wants before it will prompt
-  if (t === 'images') Sense.use('camera');
-  if (t === 'sounds') Sense.use('mic');
 }));
 
 document.querySelector('.logo').addEventListener('click', e => {
