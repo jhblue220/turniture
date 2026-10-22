@@ -16,27 +16,49 @@
 
 const PRODUCTS = {
   'side-table': {
-    name: 'Side Table',
-    site: 400,                 // round site, mm
-    layout: 'radial',          // golden-angle spiral out from the middle
-    form: 'capsule',           // straight column, rounded at the bottom
-    width: [50, 150],
-    height: [200, 700],
-    align: 'top',              // flat tops share a plane, round ends hang
-    count: 36,
-    legs: 4,                   // the outermost four run full height
-    rankHeights: false
+    name: 'Side Table', count: 22,
+    site: { w: 400, d: 400 }, layout: 'radial',
+    form: 'capsule', foot: 'circle',
+    width: [50, 150], height: [200, 700],
+    hang: true,                // flat tops share a plane, round ends hang free
+    legs: 4                    // the outermost four run full length
   },
   tray: {
-    name: 'Tray',
-    site: 260,
-    layout: 'grid',            // 3 x 3
-    form: 'cone',              // point down, flat disc on top
-    width: [60, 130],
-    height: [40, 160],
-    align: 'bottom',           // every point touches the floor
-    count: 9,
+    name: 'Tray', count: 9,
+    site: { w: 260, d: 260 }, layout: 'grid', cols: 3,
+    form: 'cone', foot: 'circle',
+    width: [60, 130], height: [40, 160],
     rankHeights: true          // otherwise the heights bunch together
+  },
+  'wall-shelves': {
+    name: 'Wall Shelves', count: 7,
+    site: { w: 700, d: 150 }, layout: 'row',
+    form: 'dome', foot: 'half',
+    width: [100, 300],         // the half sticks out by its radius — 150 max
+    height: [60, 240],
+    wall: true, centreZ: true  // sits on a wall, centred about its own middle
+  },
+  stool: {
+    name: 'Stool', count: 16,
+    site: { w: 380, d: 380 }, layout: 'grid', cols: 4,
+    form: 'box', foot: 'square',
+    width: [55, 95], height: [150, 450],
+    legs: 4                    // the four corners run full length
+  },
+  pendant: {
+    name: 'Pendant', count: 5,
+    site: { w: 500, d: 500 }, layout: 'row',
+    form: 'shade', foot: 'circle',
+    width: [60, 140], height: [80, 250],
+    hang: true, flex: 60       // hangs from a ceiling on a flex
+  },
+  shelves: {
+    name: 'Shelves', count: 6,
+    site: { w: 500, d: 300, h: 1000 }, layout: 'stack', cols: 2, rows: 3,
+    form: 'ring', foot: 'circle',
+    width: [110, 240],         // outer diameter of the cubby
+    height: [100, 300],        // how deep it runs back
+    wall: true
   }
 };
 
@@ -152,6 +174,12 @@ const Make = (() => {
 
   /* ── layout ─────────────────────────────────────────────────────────────── */
 
+  /* Every piece ends up as a list of forms with the same five numbers:
+       x, y  — where it stands on the floor (or along the wall), mm
+       z     — the bottom of the silhouette, mm, up from the floor plane
+       w, hv — the silhouette's width and height, mm
+     The renderers only ever read those, so a floor piece and a wall piece
+     draw through exactly the same code. */
   function build(frames){
     const p = prod;
     const used = pick(frames, p.count);
@@ -165,28 +193,68 @@ const Make = (() => {
     }));
 
     if (p.layout === 'radial') {
-      // golden-angle spiral — fills a disc evenly with no rings or spokes
+      // golden-angle spiral — fills a disc evenly, with no rings or spokes
       const GOLD = Math.PI * (3 - Math.sqrt(5));
-      const rMax = p.site / 2 - p.width[1] / 2;
+      const rMax = p.site.w / 2 - p.width[1] / 2;
       list.forEach((s, k) => {
         const rad = rMax * Math.sqrt((k + 0.5) / list.length);
         s.x = Math.cos(k * GOLD) * rad;
         s.y = Math.sin(k * GOLD) * rad;
         s.r = rad;
       });
-      if (p.legs) {                       // the outermost few run full height
-        [...list].sort((a, b) => b.r - a.r).slice(0, p.legs)
-                 .forEach(s => { s.h = p.height[1]; });
-      }
-    } else {
-      const cols = Math.ceil(Math.sqrt(list.length));
-      const rows = Math.ceil(list.length / cols);
-      const cell = p.site / cols;
+      if (p.legs) [...list].sort((a, b) => b.r - a.r).slice(0, p.legs)
+                           .forEach(s => { s.h = p.height[1]; });
+    } else if (p.layout === 'grid') {
+      const cols = p.cols, rows = Math.ceil(list.length / cols);
+      const cell = p.site.w / cols;
       list.forEach((s, k) => {
-        s.x = ((k % cols) + 0.5 - cols / 2) * cell;
-        s.y = (Math.floor(k / cols) + 0.5 - rows / 2) * cell;
+        s.col = k % cols; s.row = Math.floor(k / cols);
+        s.x = (s.col + 0.5 - cols / 2) * cell;
+        s.y = (s.row + 0.5 - rows / 2) * cell;
+      });
+      if (p.legs) {                    // the four corners become the legs
+        const corner = s => (s.col === 0 || s.col === cols - 1) &&
+                            (s.row === 0 || s.row === rows - 1);
+        const cs = list.filter(corner);
+        [cs[0], cs[cs.length - 1], cs[1], cs[cs.length - 2]]
+          .filter(Boolean).slice(0, p.legs).forEach(s => { s.h = p.height[1]; });
+      }
+    } else if (p.layout === 'row') {
+      const step = p.site.w / list.length;
+      list.forEach((s, k) => {
+        s.x = (k + 0.5) * step - p.site.w / 2;
+        // a half form sticks out by its own radius, so the fat ones come forward
+        s.y = p.wall ? -s.w / 4 : 0;
+      });
+    } else {                            // 'stack' — a wall unit, 2 across, 3 up
+      /* Rows and columns are packed to whatever is actually in them rather
+         than to a fixed grid, so the cubbies sit against each other and the
+         unit ends up only as tall as its contents. */
+      const colW = [], rowH = [];
+      list.forEach((s, k) => {
+        s.col = k % p.cols; s.row = Math.floor(k / p.cols);
+        colW[s.col] = Math.max(colW[s.col] || 0, s.w);
+        rowH[s.row] = Math.max(rowH[s.row] || 0, s.w);
+      });
+      const xs = []; let acc = -colW.reduce((a, b) => a + b, 0) / 2;
+      colW.forEach((v, i) => { xs[i] = acc + v / 2; acc += v; });
+      const zs = []; acc = 0;
+      rowH.forEach((v, i) => { zs[i] = acc + v / 2; acc += v; });
+      list.forEach(s => {
+        s.x = xs[s.col];
+        s.y = 0;                        // the open face is flush with the front
+        s.depth = s.h;                  // and the cubby runs back by this much
+        s.zRow = zs[s.row];
       });
     }
+
+    // the silhouette each form actually draws
+    list.forEach(s => {
+      if (p.layout === 'stack') { s.hv = s.w; s.z = s.zRow - s.w / 2; }
+      else if (p.centreZ)       { s.hv = s.h; s.z = -s.h / 2; }
+      else if (p.hang)          { s.hv = s.h + (p.flex || 0); s.z = -s.hv; }
+      else                      { s.hv = s.h; s.z = 0; }
+    });
     return list;
   }
 
@@ -202,32 +270,79 @@ const Make = (() => {
     return { g, w, h };
   }
 
-  /* one form, flat, drawn into a w x h box standing on (0,0) */
-  function silhouette(g, form, w, h){
+  /* One form, flat, drawn into a w x h box whose bottom edge sits on (0,0).
+     These are the same silhouettes the picker page already uses. */
+  function silhouette(g, form, w, h, p){
+    const hw = w / 2;
     g.beginPath();
-    if (form === 'cone') {                       // point down
-      g.moveTo(-w/2, -h); g.lineTo(w/2, -h); g.lineTo(0, 0); g.closePath();
-    } else {                                     // column, rounded at the foot
-      const r = Math.min(w / 2, h);
-      g.moveTo(-w/2, -h); g.lineTo(w/2, -h); g.lineTo(w/2, -r);
-      g.quadraticCurveTo(w/2, 0, 0, 0);
-      g.quadraticCurveTo(-w/2, 0, -w/2, -r);
-      g.closePath();
+    if (form === 'cone') {                           // Tray — point down
+      g.moveTo(-hw, -h); g.lineTo(hw, -h); g.lineTo(0, 0);
+    } else if (form === 'box') {                     // Stool
+      g.rect(-hw, -h, w, h);
+    } else if (form === 'dome') {                    // Wall Shelves
+      g.moveTo(-hw, -h); g.lineTo(hw, -h); g.lineTo(hw * 0.88, -h * 0.58);
+      g.quadraticCurveTo(hw * 0.84, 0, 0, 0);
+      g.quadraticCurveTo(-hw * 0.84, 0, -hw * 0.88, -h * 0.58);
+    } else if (form === 'shade') {                   // Pendant — cone on a flex
+      const flex = p.flex || 0, t = Math.max(1.5, w * 0.02);
+      g.rect(-t / 2, -h, t, flex);
+      g.moveTo(0, -h + flex); g.lineTo(hw, 0); g.lineTo(-hw, 0);
+    } else {                                         // Side Table — round foot
+      const r = Math.min(hw, h);
+      g.moveTo(-hw, -h); g.lineTo(hw, -h); g.lineTo(hw, -r);
+      g.quadraticCurveTo(hw, 0, 0, 0);
+      g.quadraticCurveTo(-hw, 0, -hw, -r);
     }
+    g.closePath();
+  }
+
+  /* The face you see on top of a form in the 3D view. Each one is different:
+     a column shows a disc, a box a skewed square, a wall shelf the flat half
+     disc you would put something on, a shade its open mouth underneath. */
+  function cap(g, form, w, hv, SIN){
+    const r = w / 2;
+    if (form === 'capsule' || form === 'cone') {
+      g.beginPath(); g.ellipse(0, -hv, r, r * SIN, 0, 0, Math.PI * 2);
+    } else if (form === 'box') {
+      const dx = r * 0.55, dy = r * SIN;
+      g.beginPath();
+      g.moveTo(-r, -hv); g.lineTo(-r + dx, -hv - dy);
+      g.lineTo(r + dx, -hv - dy); g.lineTo(r, -hv); g.closePath();
+    } else if (form === 'dome') {
+      g.beginPath(); g.ellipse(0, -hv, r, r * SIN, 0, Math.PI, 0); g.closePath();
+    } else if (form === 'shade') {
+      g.beginPath(); g.ellipse(0, 0, r, r * SIN, 0, 0, Math.PI * 2);
+    } else {
+      return false;                                   // a ring needs none
+    }
+    return true;
+  }
+
+  /* the footprint, seen from straight above */
+  function footprint(g, foot, w){
+    const r = w / 2;
+    g.beginPath();
+    if (foot === 'square')    g.rect(-r, -r, w, w);
+    else if (foot === 'half') g.arc(0, 0, r, 0, Math.PI);   // flat edge on the wall
+    else                      g.arc(0, 0, r, 0, Math.PI * 2);
+    g.closePath();
   }
 
   function drawTop(){
     const { g, w, h } = fit(cv);
     if (!shapes.length) return;
-    const s = Math.min(w, h) / (prod.site * 1.08);
-    g.save(); g.translate(w / 2, h / 2);
-    g.lineWidth = 3; g.strokeStyle = css('--bg');
-    shapes.forEach((sh, i) => {
-      g.beginPath();
-      g.arc(sh.x * s, sh.y * s, sh.w / 2 * s, 0, Math.PI * 2);
-      g.fillStyle = i === head ? css('--bg') : css('--fg');
-      g.fill(); g.stroke();
-    });
+    const span = Math.max(prod.site.w, prod.site.d, prod.width[1]);
+    const s = Math.min(w, h) / (span * 1.12);
+    g.save(); g.translate(w / 2, h / 2); g.scale(s, s);
+    g.lineWidth = 3 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
+    // biggest first, so a small one in front of a big one still reads
+    shapes.map((sh, i) => ({ sh, i })).sort((a, b) => b.sh.w - a.sh.w)
+          .forEach(({ sh, i }) => {
+            g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
+            footprint(g, prod.foot, sh.w);
+            g.fillStyle = i === head ? css('--bg') : css('--fg');
+            g.fill(); g.stroke(); g.restore();
+          });
     g.restore();
   }
 
@@ -235,16 +350,18 @@ const Make = (() => {
     const { g, w, h } = fit(cv);
     if (!shapes.length) return;
     const COS = Math.cos(Math.PI / 6), SIN = Math.sin(Math.PI / 6);
-    const proj = sh => ({ px: (sh.x - sh.y) * COS, py: (sh.x + sh.y) * SIN });
+    /* A piece on the floor is drawn isometrically. A piece on a wall keeps its
+       horizontal line — you look at it straight on, the way you would in a
+       room — and depth only pushes up and to the right. */
+    const at = prod.wall
+      ? sh => ({ px: sh.x + sh.y * 0.5, py: -sh.z - sh.y * 0.29 })
+      : sh => ({ px: (sh.x - sh.y) * COS, py: (sh.x + sh.y) * SIN - sh.z });
 
-    // measure, then fit
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
-    const top = prod.align === 'top';
     for (const sh of shapes) {
-      const { px, py } = proj(sh);
-      const base = top ? py + sh.h : py;             // where the form sits
+      const { px, py } = at(sh);
       x0 = Math.min(x0, px - sh.w / 2); x1 = Math.max(x1, px + sh.w / 2);
-      y0 = Math.min(y0, base - sh.h);  y1 = Math.max(y1, base);
+      y0 = Math.min(y0, py - sh.hv);    y1 = Math.max(y1, py);
     }
     const s = Math.min(w / (x1 - x0), h / (y1 - y0)) * 0.86;
     g.save();
@@ -253,22 +370,45 @@ const Make = (() => {
     g.translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
     g.lineWidth = 2 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
 
-    // far shapes first, so the near ones overlap them
-    shapes.map((sh, i) => ({ sh, i, d: sh.x + sh.y }))
+    // far forms first, so the near ones overlap them
+    shapes.map((sh, i) => ({ sh, i, d: prod.wall ? -sh.z : sh.x + sh.y }))
           .sort((a, b) => a.d - b.d)
           .forEach(({ sh, i }) => {
-            const { px, py } = proj(sh);
-            const base = top ? py + sh.h : py;
-            g.save(); g.translate(px, base);
-            silhouette(g, prod.form, sh.w, sh.h);
+            const { px, py } = at(sh);
+            g.save(); g.translate(px, py);
             g.fillStyle = i === head ? css('--bg') : css('--fg');
-            g.fill(); g.stroke();
-            g.beginPath();                            // the flat cap on top
-            g.ellipse(0, -sh.h, sh.w / 2, sh.w / 2 * SIN, 0, 0, Math.PI * 2);
-            g.fill(); g.stroke();
+            if (prod.form === 'ring') { tube(g, sh, i); g.restore(); return; }
+            silhouette(g, prod.form, sh.w, sh.hv, prod);
+            g.fill('evenodd'); g.stroke();
+            if (cap(g, prod.form, sh.w, sh.hv, SIN)) { g.fill(); g.stroke(); }
             g.restore();
           });
     g.restore();
+  }
+
+  /* A Shelves cubby: a tube running back into the wall, with its mouth cut out
+     at the front. The body is painted as three plain fills — the front disc,
+     the back disc and the band between them — rather than one path, so there
+     is no winding rule to get wrong where they overlap. */
+  function tube(g, sh, i){
+    const r = sh.w / 2, bx = sh.depth * 0.5, by = -sh.depth * 0.29;
+    const ang = Math.atan2(by, bx);
+    const nx = -Math.sin(ang) * r, ny = Math.cos(ang) * r;
+    const cy = -r;                                   // front centre
+
+    g.beginPath();                                   // the band
+    g.moveTo(nx, cy + ny);
+    g.lineTo(bx + nx, cy + by + ny);
+    g.lineTo(bx - nx, cy + by - ny);
+    g.lineTo(-nx, cy - ny);
+    g.closePath(); g.fill();
+    g.beginPath(); g.arc(bx, cy + by, r, 0, Math.PI * 2); g.fill();   // back
+    g.beginPath(); g.arc(0, cy, r, 0, Math.PI * 2); g.fill();         // front
+
+    g.beginPath();                                   // the mouth
+    g.arc(0, cy, r * 0.68, 0, Math.PI * 2);
+    g.fillStyle = i === head ? css('--fg') : css('--bg');
+    g.fill(); g.stroke();
   }
 
   function drawTimeline(){

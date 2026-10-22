@@ -58,7 +58,7 @@ const ITEMS = [
     id: 'tray', label: 'Tray', size: '250*250*160',
     rest: { w: 95, h: 183, d: 'M0,0 L95,0 L48,183 L0,0 Z' },
     cluster: {
-      w: 314, h: 184, anchor: 'top', unit: UNIT.spike,
+      w: 314, h: 184, anchor: 'bottom', unit: UNIT.spike,
       units: [
         { x: 0,   w: 65, h: 121 }, { x: 65,  w: 52, h: 183 },
         { x: 117, w: 42, h: 106 }, { x: 159, w: 45, h: 182 },
@@ -67,7 +67,7 @@ const ITEMS = [
     }
   },
   {
-    id: 'wall-shelves', label: 'Wall Shelves', size: '250*250*160',
+    id: 'wall-shelves', label: 'Wall Shelves', size: '700*150*240',
     rest: { w: 100, h: 156, d: 'M0,0 L100,0 L97,55 L87,106 L75,136 L69,145 L57,155 L47,156 L38,152 L28,141 L18,121 L10,95 L4,63 L1,35 L0,0 Z' },
     cluster: {
       w: 268, h: 176, anchor: 'top', unit: UNIT.dome,
