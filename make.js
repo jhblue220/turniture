@@ -56,7 +56,8 @@ const PRODUCTS = {
     form: 'shade', foot: 'circle',
     width: [60, 140], height: [80, 250],
     pack: 0.22,                // shoulders overlap, so all five read separately
-    hang: true, flex: 60       // hangs from a ceiling on a flex
+    hang: true, flex: 60,      // hangs from a ceiling on a flex
+    view3d: [0.55, -0.38]      // seen from underneath, where you would stand
   },
   shelves: {
     name: 'Shelves', count: 6,
@@ -92,6 +93,7 @@ const Make = (() => {
   let head = -1;                        // which form is being pointed out
   let photo = null;                     // the picture it came from, if any
   let playing = false, playFrom = 0, frame = null;
+  let take = null, takeUrl = null;      // the recording itself, for Play
   let stream = null, recorder = null, chunks = [];
 
   const STEP = 620;                     // ms each form is held while playing
@@ -431,16 +433,16 @@ const Make = (() => {
   function cap(g, form, w, hv, SIN){
     const r = w / 2;
     if (form === 'capsule' || form === 'cone') {
-      g.beginPath(); g.ellipse(0, -hv, r, r * SIN, 0, 0, Math.PI * 2);
+      g.beginPath(); g.ellipse(0, -hv, r, r * Math.abs(SIN), 0, 0, Math.PI * 2);
     } else if (form === 'box') {
       const dx = r * 0.55, dy = r * SIN;
       g.beginPath();
       g.moveTo(-r, -hv); g.lineTo(-r + dx, -hv - dy);
       g.lineTo(r + dx, -hv - dy); g.lineTo(r, -hv); g.closePath();
     } else if (form === 'dome') {
-      g.beginPath(); g.ellipse(0, -hv, r, r * SIN, 0, Math.PI, 0); g.closePath();
+      g.beginPath(); g.ellipse(0, -hv, r, r * Math.abs(SIN), 0, Math.PI, 0); g.closePath();
     } else if (form === 'shade') {
-      g.beginPath(); g.ellipse(0, 0, r, r * SIN, 0, 0, Math.PI * 2);
+      g.beginPath(); g.ellipse(0, 0, r, r * Math.abs(SIN), 0, 0, Math.PI * 2);
     } else {
       return false;                                   // a ring needs none
     }
@@ -510,7 +512,11 @@ const Make = (() => {
      it in a room; one on the floor starts at a three-quarter view. */
   let yaw = 0, pitch = 0;
   const START = { floor: [0.61, 0.56], wall: [0.24, 0.24] };
-  const resetAngles = () => { [yaw, pitch] = START[prod.wall ? 'wall' : 'floor']; };
+  /* A negative tilt puts the eye below the piece. That is the only way a
+     pendant makes sense — you stand under a lamp, not over it. */
+  const resetAngles = () => {
+    [yaw, pitch] = prod.view3d || START[prod.wall ? 'wall' : 'floor'];
+  };
 
   function drawIso(){
     const { g, w, h } = fit(cv);
@@ -519,10 +525,16 @@ const Make = (() => {
     const sp = Math.sin(pitch), kz = Math.cos(pitch);   // kz squashes heights
 
     // turn the piece about its upright axis, then tip it towards the viewer
+    /* Screen position and true distance from the eye. Tipping the view is a
+       rotation in the (ground, height) plane, so the axis that runs into the
+       screen is yr·cos − z·sin. Sorting on the ground position alone left a
+       row of pendants — all at the same y — in arbitrary order, so a near one
+       could end up painted behind a far one. */
     const at = sh => {
       const xr =  sh.x * cy + sh.y * sy;
       const yr = -sh.x * sy + sh.y * cy;
-      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr };
+      const mid = sh.z + sh.hv / 2;
+      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr * kz - mid * sp };
     };
 
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -553,6 +565,14 @@ const Make = (() => {
             g.globalAlpha = i === head ? 0.4 : 1;      // the one being pointed out
             g.fillStyle = css('--fg');
             if (prod.form === 'ring') { tube(g, sh, i, sy, cy * sp); g.restore(); return; }
+            if (prod.form === 'box') {
+              g.restore();                                // boxes turn with the view
+              g.save(); g.globalAlpha = i === head ? 0.4 : 1;
+              g.fillStyle = css('--fg');
+              cuboid(g, sh, cy, sy, sp, kz);
+              g.globalAlpha = 1; g.restore();
+              return;
+            }
             silhouette(g, prod.form, sh.w, sh.hv * kz, prod, (prod.flex || 0) * kz);
             g.fill('evenodd'); g.stroke();
             if (cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
@@ -560,6 +580,47 @@ const Make = (() => {
             g.restore();
           });
     g.restore();
+  }
+
+  /* A box has flat sides, so unlike a column or a cone it cannot be drawn as
+     one outline with a lid stuck on — turn the view and its faces have to turn
+     with it. Project the eight corners, keep the three faces pointing at the
+     eye, and paint them back to front. */
+  function cuboid(g, sh, cy, sy, sp, kz){
+    const r = sh.w / 2;
+    const pt = (dx, dy, z) => {
+      const wx = sh.x + dx, wy = sh.y + dy;
+      const xr =  wx * cy + wy * sy;
+      const yr = -wx * sy + wy * cy;
+      return { x: xr, y: -yr * sp - z * kz, d: yr * kz - z * sp };
+    };
+    const z0 = sh.z, z1 = sh.z + sh.hv;
+    const c = [[-r,-r],[r,-r],[r,r],[-r,r]].map(([dx,dy]) => [pt(dx,dy,z0), pt(dx,dy,z1)]);
+    const faces = [
+      [c[0][1], c[1][1], c[2][1], c[3][1]],       // top
+      [c[0][0], c[3][0], c[2][0], c[1][0]],       // bottom
+      [c[0][0], c[1][0], c[1][1], c[0][1]],
+      [c[1][0], c[2][0], c[2][1], c[1][1]],
+      [c[2][0], c[3][0], c[3][1], c[2][1]],
+      [c[3][0], c[0][0], c[0][1], c[3][1]]
+    ];
+    faces
+      .map(f => ({ f, d: f.reduce((a, p) => a + p.d, 0) / 4 }))
+      .filter(({ f }) => {                         // drop the ones facing away
+        let a2 = 0;
+        for (let i = 0; i < f.length; i++) {
+          const p = f[i], q = f[(i + 1) % f.length];
+          a2 += p.x * q.y - q.x * p.y;
+        }
+        return Math.abs(a2) > 1e-6;
+      })
+      .sort((a, b) => b.d - a.d)
+      .forEach(({ f }) => {
+        g.beginPath();
+        g.moveTo(f[0].x, f[0].y);
+        for (let i = 1; i < f.length; i++) g.lineTo(f[i].x, f[i].y);
+        g.closePath(); g.fill(); g.stroke();
+      });
   }
 
   /* A Shelves cubby: a tube running back into the wall, with its mouth cut out
@@ -619,28 +680,36 @@ const Make = (() => {
       return;
     }
 
-    // a sound: the forms already made, stacked up the panel
-    const done = playing ? head : shapes.length;
-    const made = shapes.slice(0, Math.max(done, 0));
-    if (made.length) {
-      const unit = Math.min(h / made.length, w * 0.55) / prod.width[1];
-      let y = h / 2 - made.reduce((a, s) => a + s.w * unit, 0) / 2;
-      for (const sh of made) {
-        const r = sh.w * unit / 2;
-        g.beginPath(); g.arc(w / 2, y + r, r, 0, Math.PI * 2); g.fill();
-        y += r * 2;
-      }
-    }
+    /* A sound has no picture, so the left panel shows the same piece from
+       straight above — each form arriving in its own place as it is made,
+       rather than in a queue down the side. */
+    const done = playing ? head + 1 : shapes.length;
+    let G = 1;
+    for (const sh of shapes) G = Math.max(G, Math.hypot(sh.x, sh.y) + sh.w / 2);
+    const s = Math.min(w, h) / 2 / G * 0.86;
+    g.save(); g.translate(w / 2, h / 2); g.scale(s, s);
+    g.lineWidth = 3 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
+    shapes.slice(0, Math.max(done, 0))
+          .map((sh, i) => ({ sh, i })).sort((a, b) => b.sh.w - a.sh.w)
+          .forEach(({ sh, i }) => {
+            g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
+            footprint(g, prod.foot, sh.w);
+            g.globalAlpha = i === head && playing ? 0.4 : 1;
+            g.fillStyle = css('--fg');
+            g.fill(); g.stroke(); g.globalAlpha = 1; g.restore();
+          });
+    g.restore();
+
     if (playing && head >= 0 && head < shapes.length) {    // the one being made
       const t = performance.now() / 1000;
-      const R = Math.min(w, h) * 0.17, N = 8;
-      const cxp = w / 2, cyp = h * 0.26;
+      const R = Math.min(w, h) * 0.085, N = 8;
+      const cxp = w / 2 + shapes[head].x * s, cyp = h / 2 + (prod.wall ? 0 : shapes[head].y) * s;
+      g.fillStyle = css('--bg');
       for (let i = 0; i < N; i++) {
-        const a = t * 2.2 + i * (Math.PI * 2 / N);
-        const k = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 3 - i * 0.8));
-        const rr = R * 0.26 * k * (shapes[head].w / prod.width[1]);
+        const a = t * 2.4 + i * (Math.PI * 2 / N);
+        const k = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * 3 - i * 0.8));
         g.beginPath();
-        g.arc(cxp + Math.cos(a) * R, cyp + Math.sin(a) * R, Math.max(3, rr), 0, Math.PI * 2);
+        g.arc(cxp + Math.cos(a) * R, cyp + Math.sin(a) * R, Math.max(2, R * 0.24 * k), 0, Math.PI * 2);
         g.fill();
       }
     }
@@ -688,6 +757,10 @@ const Make = (() => {
   async function readAudio(blob){
     const ac = new (window.AudioContext || window.webkitAudioContext)();
     const buf = await ac.decodeAudioData(await blob.arrayBuffer());
+    if (takeUrl) URL.revokeObjectURL(takeUrl);
+    takeUrl = URL.createObjectURL(blob);          // so Play can sound it out
+    take = new Audio(takeUrl);
+    take.addEventListener('ended', () => stop());
     run(await framesFromAudio(buf));
     ac.close();
   }
@@ -725,7 +798,7 @@ const Make = (() => {
         img.onload = () => { photo = img; run(framesFromImage(img)); };
         img.src = c.toDataURL();
       } else {
-        photo = null;
+        photo = null; take = null;
         if (!recorder) {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           chunks = [];
@@ -761,8 +834,12 @@ const Make = (() => {
 
   function tick(){
     if (!playing) return;
-    const i = Math.floor((performance.now() - playFrom) / STEP);
-    if (i >= shapes.length) { stop(); return; }
+    /* With a recording, walk at the pace of the sound itself so the form being
+       pointed out is the one you are hearing. */
+    const i = take && take.duration
+      ? Math.min(shapes.length - 1, Math.floor(take.currentTime / take.duration * shapes.length))
+      : Math.floor((performance.now() - playFrom) / STEP);
+    if (i >= shapes.length || (take && take.ended)) { stop(); return; }
     head = i;
     draw();
     frame = requestAnimationFrame(tick);
@@ -772,12 +849,14 @@ const Make = (() => {
     if (!shapes.length) return;
     playing = true; playFrom = performance.now(); head = 0;
     playBtn.classList.add('is-on');
+    if (take) { take.currentTime = 0; take.play().catch(() => {}); }
     cancelAnimationFrame(frame); frame = requestAnimationFrame(tick);
   }
 
   function stop(){
     playing = false; head = -1;
     playBtn.classList.remove('is-on');
+    if (take) take.pause();
     cancelAnimationFrame(frame); frame = null;
     draw();
   }
@@ -808,7 +887,7 @@ const Make = (() => {
   cv.addEventListener('pointermove', e => {
     if (!turning) return;
     yaw   += (e.clientX - turning.x) * 0.012;
-    pitch  = clamp(pitch + (e.clientY - turning.y) * 0.010, 0.05, 1.45);
+    pitch  = clamp(pitch + (e.clientY - turning.y) * 0.010, -1.45, 1.45);
     turning = { x: e.clientX, y: e.clientY };
     draw();
   });
@@ -824,6 +903,8 @@ const Make = (() => {
   function reset(){
     stopLive(); stop();
     shapes = []; head = -1; photo = null;
+    if (take) { take.pause(); take = null; }
+    if (takeUrl) { URL.revokeObjectURL(takeUrl); takeUrl = null; }
     fileBox.classList.remove('is-busy', 'is-armed');
     io.classList.remove('is-off');
     out.classList.remove('is-on');
