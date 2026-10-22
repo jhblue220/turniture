@@ -459,12 +459,32 @@ const Make = (() => {
 
   /* the piece fills about 40% of the panel at its nominal size, and stays
      there however it is turned */
-  const SHARE = 0.92;                   // of the panel, at the product's full size
-  function fixedScale(){
-    const p = prod;
-    const nominal = Math.max(p.site.w, p.site.d, p.height[1]);
-    return SHARE * (cv.clientHeight || 709) / nominal;
+  /* One scale, worked out once when the piece is made and then left alone —
+     turning it never resizes it. The bound has to hold at *every* angle, so it
+     is taken from how far a form can swing: on screen a point lands at
+     -y'·sin(pitch) - z·cos(pitch), which can never exceed hypot(ground, z).
+     Using that instead of the current angle's extent is why the piece no
+     longer runs off the canvas when you tilt it. */
+  const SHARE = 0.92;
+  let scaleFixed = 1;
+
+  function measureScale(){
+    const w = cv.clientWidth || 1125, h = cv.clientHeight || 709;
+    let G = 1, zLo = Infinity, zHi = -Infinity;
+    for (const sh of shapes) {
+      G = Math.max(G, Math.hypot(sh.x, sh.y) + sh.w / 2 + (sh.depth || 0));
+      zLo = Math.min(zLo, sh.z);
+      zHi = Math.max(zHi, sh.z + sh.hv);
+    }
+    /* The drawing is centred, so what matters is the half-span about the
+       piece's own middle, not the distance from the floor. Across every angle
+       the vertical span stays under hypot(2G, height), so half of that is the
+       room to leave. */
+    const halfV = Math.hypot(G, (zHi - zLo) / 2);
+    scaleFixed = Math.min(w / 2 / G, h / 2 / halfV) * SHARE;
   }
+
+  const fixedScale = () => scaleFixed;
 
   function drawTop(){
     const { g, w, h } = fit(cv);
@@ -648,6 +668,7 @@ const Make = (() => {
   async function run(frames){
     if (!frames.length) { reset(); return; }
     shapes = build(frames);
+    measureScale();
     head = -1;
     view = 'iso';
     modeBtn.textContent = '2D';
