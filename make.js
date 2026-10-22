@@ -21,14 +21,18 @@ const PRODUCTS = {
     form: 'capsule', foot: 'circle',
     width: [50, 150], height: [200, 700],
     hang: true,                // flat tops share a plane, round ends hang free
-    legs: 4                    // the outermost four run full length
+    legs: 4,                   // one per quadrant, so the table actually stands
+    packFactor: 0.85,          // cell = mean diameter x this
+    maxOverlap: 0.2            // neighbours bite at most 20% of the thinner one
   },
   tray: {
     name: 'Tray', count: 9,
-    site: { w: 260, d: 260 }, layout: 'grid', cols: 3,
+    site: { w: 260, d: 260 }, layout: 'grid',
     form: 'cone', foot: 'circle',
     width: [60, 130], height: [40, 160],
-    rankHeights: true          // otherwise the heights bunch together
+    rankHeights: true,         // otherwise the heights bunch together
+    fillSite: true,            // the nine fill the site, so the cell is 86.7mm
+    connectStrays: true        // then anything left floating is fattened until it bites
   },
   'wall-shelves': {
     name: 'Wall Shelves', count: 7,
@@ -77,14 +81,20 @@ const Make = (() => {
   const liveLbl  = page.querySelector('[data-live-label]');
   const cam      = page.querySelector('.drop__cam');
   const cv       = page.querySelector('[data-canvas]');
-  const tl       = page.querySelector('[data-timeline]');
-  const vbtns    = [...page.querySelectorAll('.vbtn[data-view]')];
+  const src      = page.querySelector('[data-src]');
+  const playBtn  = page.querySelector('[data-play]');
+  const modeBtn  = page.querySelector('[data-mode]');
+  const cartBtn  = page.querySelector('[data-cart]');
 
   let prod = null, kind = 'images';     // 'images' | 'sounds'
-  let shapes = [];                      // { w, h, x, y } in mm
-  let view = 'top';
-  let head = 0;                         // timeline position, 0..shapes.length-1
+  let shapes = [];                      // the forms, in mm
+  let view = 'iso';
+  let head = -1;                        // which form is being pointed out
+  let photo = null;                     // the picture it came from, if any
+  let playing = false, playFrom = 0, frame = null;
   let stream = null, recorder = null, chunks = [];
+
+  const STEP = 620;                     // ms each form is held while playing
 
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -126,7 +136,8 @@ const Make = (() => {
     const frames = [];
     for (let i = 0; i < n; i++) {
       const p = Math.round(i * (W * H - 1) / Math.max(n - 1, 1));
-      frames.push({ vol: S[p], depth: L[p] });
+      // `at` is how far down the picture this frame was read, 0..1
+      frames.push({ vol: S[p], depth: L[p], at: Math.floor(p / W) / (H - 1) });
     }
     return frames;
   }
@@ -157,7 +168,8 @@ const Make = (() => {
         if (a > best) { best = a; bestLag = lag; }
       }
       const hz = bestLag ? SR / bestLag : 0;
-      frames.push({ vol: rms, depth: hz ? clamp((hz - 100) / 700, 0, 1) : 0 });
+      frames.push({ vol: rms, depth: hz ? clamp((hz - 100) / 700, 0, 1) : 0,
+                    at: s / mono.length });
     }
     return frames;
   }
@@ -177,6 +189,97 @@ const Make = (() => {
 
   /* ── layout ─────────────────────────────────────────────────────────────── */
 
+  /* ── the prototype's placement rules (코딩 2) ───────────────────────────
+     Three steps decide how much neighbours bite into each other. Without them
+     a spiral collapses into a knot and a grid leaves pieces floating. */
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  /* Side Table: no pair may sink deeper into its neighbour than `ratio` of the
+     thinner one's diameter. Pushing only the pairs that are too deep, a little
+     at a time, leaves the rest where the spiral put them — scaling the whole
+     layout instead would double the piece because of one bad pair. */
+  function spreadToMaxOverlap(list, ratio){
+    const want = (p, q) => p.w / 2 + q.w / 2 - ratio * Math.min(p.w, q.w);
+    for (let pass = 0; pass < 300; pass++) {
+      let worst = 0;
+      for (let i = 0; i < list.length; i++)
+        for (let j = i + 1; j < list.length; j++) {
+          const p = list[i], q = list[j], need = want(p, q);
+          let dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy);
+          if (d >= need - 1e-4) continue;
+          if (d < 1e-6) { dx = 1; dy = 0; d = 1e-6; }
+          const push = (need - d) / 2, ux = dx / d, uy = dy / d;
+          p.x -= ux * push; p.y -= uy * push;
+          q.x += ux * push; q.y += uy * push;
+          worst = Math.max(worst, need - d);
+        }
+      if (worst < 0.05) break;
+    }
+    const mx = list.reduce((a, s) => a + s.x, 0) / list.length;
+    const my = list.reduce((a, s) => a + s.y, 0) / list.length;
+    list.forEach(s => { s.x -= mx; s.y -= my; });   // put the middle back
+  }
+
+  /* Tray: the grid never moves — pulling a corner inwards turns a square into
+     a cross. Instead the thin ones are fattened until every neighbouring pair
+     overlaps by at least BITE. Neighbours are the pairs within 1.3x the
+     closest spacing, which on a grid is the side-by-side pairs and not the
+     diagonals. Worst-offending pair first, and the thinner one pays. */
+  const BITE = 3, NEAR = 1.3;
+  function connectStrays(list, max){
+    const pairs = [];
+    let minD = Infinity;
+    for (let i = 0; i < list.length; i++)
+      for (let j = i + 1; j < list.length; j++) minD = Math.min(minD, dist(list[i], list[j]));
+    for (let i = 0; i < list.length; i++)
+      for (let j = i + 1; j < list.length; j++)
+        if (dist(list[i], list[j]) <= minD * NEAR) pairs.push([i, j]);
+
+    for (let guard = 0; guard < 4 * list.length * list.length; guard++) {
+      let worst = null;
+      for (const [i, j] of pairs) {
+        const need = BITE - (list[i].w / 2 + list[j].w / 2 - dist(list[i], list[j]));
+        if (need > 0 && (!worst || need > worst.need)) worst = { i, j, need };
+      }
+      if (!worst) break;
+      const { i, j, need } = worst;
+      const thin = list[i].w <= list[j].w ? i : j, other = thin === i ? j : i;
+      const was = [list[thin].w, list[other].w];
+      list[thin].w = Math.min(max, list[thin].w + 2 * need);
+      const got = (list[thin].w - was[0]) / 2;
+      if (got < need - 1e-6) list[other].w = Math.min(max, list[other].w + 2 * (need - got));
+      if (list[thin].w === was[0] && list[other].w === was[1]) break;   // both maxed out
+    }
+  }
+
+  /* Side Table: the four that reach the floor have to be spread around, not
+     bunched on one side, or the table tips. One per quadrant, the outermost. */
+  function legsByQuadrant(list, k, maxH){
+    const far = new Array(k).fill(-1), pick = new Array(k).fill(-1);
+    list.forEach((s, i) => {
+      const r = Math.hypot(s.x, s.y);
+      const q = Math.floor(((Math.atan2(s.y, s.x) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI) * k);
+      if (r > far[q]) { far[q] = r; pick[q] = i; }
+    });
+    pick.forEach(i => { if (i >= 0) list[i].h = maxH; });
+  }
+
+  /* Cells filled from the middle outwards, so a short take never leaves a
+     hole in the centre. */
+  function spiralOrder(cols, rows){
+    const cells = [];
+    let l = 0, r = cols - 1, t = 0, b = rows - 1;
+    while (l <= r && t <= b) {
+      for (let x = l; x <= r; x++) cells.push([x, t]);
+      for (let y = t + 1; y <= b; y++) cells.push([r, y]);
+      if (t < b) for (let x = r - 1; x >= l; x--) cells.push([x, b]);
+      if (l < r) for (let y = b - 1; y > t; y--) cells.push([l, y]);
+      l++; r--; t++; b--;
+    }
+    return cells.reverse();
+  }
+
   /* Every piece ends up as a list of forms with the same five numbers:
        x, y  — where it stands on the floor (or along the wall), mm
        z     — the bottom of the silhouette, mm, up from the floor plane
@@ -190,37 +293,47 @@ const Make = (() => {
     const deps = used.map(f => f.depth).sort((a, b) => a - b);
 
     const list = used.map(f => ({
+      at: f.at ?? 0,
       w: Math.round(p.width[0] + pct(vols, f.vol) * (p.width[1] - p.width[0])),
       h: Math.round(p.height[0] + (p.rankHeights ? pct(deps, f.depth) : f.depth)
                                   * (p.height[1] - p.height[0]))
     }));
 
     if (p.layout === 'radial') {
-      // golden-angle spiral — fills a disc evenly, with no rings or spokes
-      const GOLD = Math.PI * (3 - Math.sqrt(5));
-      const rMax = p.site.w / 2 - p.width[1] / 2;
+      /* The cell comes from the diameters this take actually produced, not
+         from the range — a quiet take makes a smaller table rather than a
+         sparse one. The disc is then sized so the density stays put. */
+      const mean = list.reduce((a, s) => a + s.w, 0) / list.length;
+      const cell = mean * (p.packFactor || 0.85);
+      const rSite = p.site.w / 2 - cell / 2;
+      const capacity = Math.max(7, Math.round(Math.PI * rSite * rSite / (cell * cell)));
+      const rMax = rSite * Math.sqrt(Math.min(1, list.length / capacity));
+      const GOLD = Math.PI * (3 - Math.sqrt(5));     // no rings, no spokes
       list.forEach((s, k) => {
         const rad = rMax * Math.sqrt((k + 0.5) / list.length);
         s.x = Math.cos(k * GOLD) * rad;
         s.y = Math.sin(k * GOLD) * rad;
-        s.r = rad;
       });
-      if (p.legs) [...list].sort((a, b) => b.r - a.r).slice(0, p.legs)
-                           .forEach(s => { s.h = p.height[1]; });
+      if (p.legs) legsByQuadrant(list, p.legs, p.height[1]);
+      if (p.maxOverlap) spreadToMaxOverlap(list, p.maxOverlap);
     } else if (p.layout === 'grid') {
-      const cols = p.cols, rows = Math.ceil(list.length / cols);
-      const cell = p.site.w / cols;
+      const cell = p.fillSite
+        ? Math.sqrt(p.site.w * p.site.d / list.length)
+        : p.site.w / p.cols;
+      const cols = p.cols || Math.max(1, Math.round(p.site.w / cell));
+      const rows = Math.max(1, Math.ceil(list.length / cols));
+      const cells = spiralOrder(cols, rows);
       list.forEach((s, k) => {
-        s.col = k % cols; s.row = Math.floor(k / cols);
-        s.x = (s.col + 0.5 - cols / 2) * cell;
-        s.y = (s.row + 0.5 - rows / 2) * cell;
+        const [c, r] = cells[k % cells.length];
+        s.col = c; s.row = r;
+        s.x = (c + 0.5 - cols / 2) * (p.site.w / cols);
+        s.y = (r + 0.5 - rows / 2) * (p.site.d / rows);
       });
+      if (p.connectStrays) connectStrays(list, p.width[1]);
       if (p.legs) {                    // the four corners become the legs
         const corner = s => (s.col === 0 || s.col === cols - 1) &&
                             (s.row === 0 || s.row === rows - 1);
-        const cs = list.filter(corner);
-        [cs[0], cs[cs.length - 1], cs[1], cs[cs.length - 2]]
-          .filter(Boolean).slice(0, p.legs).forEach(s => { s.h = p.height[1]; });
+        list.filter(corner).slice(0, p.legs).forEach(s => { s.h = p.height[1]; });
       }
     } else if (p.layout === 'row') {
       if (p.pack) {
@@ -344,11 +457,19 @@ const Make = (() => {
     g.closePath();
   }
 
+  /* the piece fills about 40% of the panel at its nominal size, and stays
+     there however it is turned */
+  const SHARE = 0.92;                   // of the panel, at the product's full size
+  function fixedScale(){
+    const p = prod;
+    const nominal = Math.max(p.site.w, p.site.d, p.height[1]);
+    return SHARE * (cv.clientHeight || 709) / nominal;
+  }
+
   function drawTop(){
     const { g, w, h } = fit(cv);
     if (!shapes.length) return;
-    const span = Math.max(prod.site.w, prod.site.d, prod.width[1]);
-    const s = Math.min(w, h) / (span * 1.12);
+    const s = fixedScale();
     g.save(); g.translate(w / 2, h / 2); g.scale(s, s);
     g.lineWidth = 3 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
     // biggest first, so a small one in front of a big one still reads
@@ -356,8 +477,9 @@ const Make = (() => {
           .forEach(({ sh, i }) => {
             g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
             footprint(g, prod.foot, sh.w);
-            g.fillStyle = i === head ? css('--bg') : css('--fg');
-            g.fill(); g.stroke(); g.restore();
+            g.globalAlpha = i === head ? 0.4 : 1;
+            g.fillStyle = css('--fg');
+            g.fill(); g.stroke(); g.globalAlpha = 1; g.restore();
           });
     g.restore();
   }
@@ -392,7 +514,10 @@ const Make = (() => {
       y0 = Math.min(y0, py - sh.hv * kz - back * cy * sp);
       y1 = Math.max(y1, py + sh.w / 2 * sp);
     }
-    const s = Math.min(w / (x1 - x0), h / (y1 - y0)) * 0.86;
+    /* One fixed scale per product — never a fit to the current contents.
+       Fitting made the piece jump in size every time it turned, or when one
+       form happened to come out tall. */
+    const s = fixedScale();
     g.save();
     g.translate(w / 2, h / 2);
     g.scale(s, s);
@@ -405,11 +530,13 @@ const Make = (() => {
           .forEach(({ sh, i }) => {
             const { px, py } = at(sh);
             g.save(); g.translate(px, py);
-            g.fillStyle = i === head ? css('--bg') : css('--fg');
+            g.globalAlpha = i === head ? 0.4 : 1;      // the one being pointed out
+            g.fillStyle = css('--fg');
             if (prod.form === 'ring') { tube(g, sh, i, sy, cy * sp); g.restore(); return; }
             silhouette(g, prod.form, sh.w, sh.hv * kz, prod, (prod.flex || 0) * kz);
             g.fill('evenodd'); g.stroke();
             if (cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
+            g.globalAlpha = 1;
             g.restore();
           });
     g.restore();
@@ -436,45 +563,104 @@ const Make = (() => {
 
     g.beginPath();                                   // the mouth
     g.arc(0, cy, r * 0.68, 0, Math.PI * 2);
-    g.fillStyle = i === head ? css('--fg') : css('--bg');
+    g.fillStyle = css('--bg');
     g.fill(); g.stroke();
   }
 
-  function drawTimeline(){
-    const { g, w, h } = fit(tl);
+  /* ── the left panel ─────────────────────────────────────────────────────
+     For a picture: the picture itself, ruled into the bands each form was read
+     from, with the band being pointed out washed over in the key colour.
+     For a sound: the take drawn as circles — the ones already turned into a
+     form stack up, and the one being turned spins like a loader. */
+
+  function drawSrc(){
+    const { g, w, h } = fit(src);
     if (!shapes.length) return;
-    const n = shapes.length, step = w / n;
-    const hMax = Math.max(...shapes.map(s => s.h));
-    g.fillStyle = css('--fg');
-    shapes.forEach((sh, i) => {
-      const bw = Math.max(2, step * (sh.w / prod.width[1]) * 0.8);
-      const bh = (sh.h / hMax) * (h - 10);
-      g.fillStyle = i === head ? css('--bg') : css('--fg');
-      g.fillRect(i * step + (step - bw) / 2, h - bh, bw, bh);
-    });
-    g.strokeStyle = css('--bg'); g.lineWidth = 3;
-    g.beginPath();
-    g.moveTo(head * step + step / 2, 0); g.lineTo(head * step + step / 2, h);
-    g.stroke();
+    g.strokeStyle = css('--fg'); g.fillStyle = css('--fg');
+
+    if (photo) {
+      const r = Math.min(w / photo.width, h / photo.height);
+      const iw = photo.width * r, ih = photo.height * r;
+      const ox = (w - iw) / 2, oy = (h - ih) / 2;
+      g.drawImage(photo, ox, oy, iw, ih);
+
+      const edges = bandEdges();
+      if (head >= 0 && playing) {                     // wash over the live band
+        g.globalAlpha = 0.6;
+        g.fillRect(ox, oy + edges[head] * ih, iw, (edges[head + 1] - edges[head]) * ih);
+        g.globalAlpha = 1;
+      }
+      g.lineWidth = 2;
+      for (let i = 1; i < edges.length - 1; i++) {
+        g.beginPath();
+        g.moveTo(ox, oy + edges[i] * ih); g.lineTo(ox + iw, oy + edges[i] * ih);
+        g.stroke();
+      }
+      return;
+    }
+
+    // a sound: the forms already made, stacked up the panel
+    const done = playing ? head : shapes.length;
+    const made = shapes.slice(0, Math.max(done, 0));
+    if (made.length) {
+      const unit = Math.min(h / made.length, w * 0.55) / prod.width[1];
+      let y = h / 2 - made.reduce((a, s) => a + s.w * unit, 0) / 2;
+      for (const sh of made) {
+        const r = sh.w * unit / 2;
+        g.beginPath(); g.arc(w / 2, y + r, r, 0, Math.PI * 2); g.fill();
+        y += r * 2;
+      }
+    }
+    if (playing && head >= 0 && head < shapes.length) {    // the one being made
+      const t = performance.now() / 1000;
+      const R = Math.min(w, h) * 0.17, N = 8;
+      const cxp = w / 2, cyp = h * 0.26;
+      for (let i = 0; i < N; i++) {
+        const a = t * 2.2 + i * (Math.PI * 2 / N);
+        const k = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(t * 3 - i * 0.8));
+        const rr = R * 0.26 * k * (shapes[head].w / prod.width[1]);
+        g.beginPath();
+        g.arc(cxp + Math.cos(a) * R, cyp + Math.sin(a) * R, Math.max(3, rr), 0, Math.PI * 2);
+        g.fill();
+      }
+    }
   }
 
-  const draw = () => { (view === 'top' ? drawTop : drawIso)(); drawTimeline(); };
+  /* where one band ends and the next begins, 0..1 down the picture */
+  function bandEdges(){
+    const e = [0];
+    for (let i = 1; i < shapes.length; i++) e.push((shapes[i - 1].at + shapes[i].at) / 2);
+    e.push(1);
+    return e;
+  }
+
+  const draw = () => { (view === 'top' ? drawTop : drawIso)(); drawSrc(); };
 
   /* ── input ──────────────────────────────────────────────────────────────── */
+
+  /* The input step runs the palette inverted (Tray_01); the result step runs
+     it the right way up (ImageConvert_1) and drops the heading. */
+  const dressResult = on => {
+    document.documentElement.classList.toggle('is-flip', !on);
+    page.classList.toggle('is-result', on);
+  };
 
   async function run(frames){
     if (!frames.length) { reset(); return; }
     shapes = build(frames);
-    head = 0;
+    head = -1;
+    view = 'iso';
+    modeBtn.textContent = '2D';
     resetAngles();
     io.classList.add('is-off');
     out.classList.add('is-on');
+    dressResult(true);
     draw();
   }
 
   function readImage(file){
     const img = new Image();
-    img.onload = () => { URL.revokeObjectURL(img.src); run(framesFromImage(img)); };
+    img.onload = () => { photo = img; run(framesFromImage(img)); };
     img.src = URL.createObjectURL(file);
   }
 
@@ -515,9 +701,10 @@ const Make = (() => {
         c.getContext('2d').drawImage(cam, 0, 0);
         stopLive();
         const img = new Image();
-        img.onload = () => run(framesFromImage(img));
+        img.onload = () => { photo = img; run(framesFromImage(img)); };
         img.src = c.toDataURL();
       } else {
+        photo = null;
         if (!recorder) {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           chunks = [];
@@ -546,7 +733,48 @@ const Make = (() => {
     liveLbl.textContent = label('Live');
   }
 
-  /* ── timeline scrubbing ─────────────────────────────────────────────────── */
+
+  /* ── walking through the piece ──────────────────────────────────────────
+     Play steps form by form: on the left the band (or the circles) it came
+     from, on the right that form picked out. */
+
+  function tick(){
+    if (!playing) return;
+    const i = Math.floor((performance.now() - playFrom) / STEP);
+    if (i >= shapes.length) { stop(); return; }
+    head = i;
+    draw();
+    frame = requestAnimationFrame(tick);
+  }
+
+  function play(){
+    if (!shapes.length) return;
+    playing = true; playFrom = performance.now(); head = 0;
+    playBtn.classList.add('is-on');
+    cancelAnimationFrame(frame); frame = requestAnimationFrame(tick);
+  }
+
+  function stop(){
+    playing = false; head = -1;
+    playBtn.classList.remove('is-on');
+    cancelAnimationFrame(frame); frame = null;
+    draw();
+  }
+
+  playBtn.addEventListener('click', e => { e.stopPropagation(); playing ? stop() : play(); });
+
+  modeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    view = view === 'iso' ? 'top' : 'iso';
+    modeBtn.textContent = view === 'iso' ? '2D' : '3D';   // what you get next
+    draw();
+  });
+
+  cartBtn.addEventListener('click', e => {               // the basket comes later
+    e.stopPropagation();
+    cartBtn.classList.add('is-added');
+    setTimeout(() => cartBtn.classList.remove('is-added'), 700);
+  });
 
   /* drag the canvas to turn the piece */
   let turning = null;
@@ -566,23 +794,6 @@ const Make = (() => {
   ['pointerup', 'pointercancel'].forEach(t =>
     cv.addEventListener(t, () => { turning = null; }));
 
-  let dragging = false;
-  const scrub = e => {
-    if (!shapes.length) return;
-    const r = tl.getBoundingClientRect();
-    head = clamp(Math.floor((e.clientX - r.left) / r.width * shapes.length), 0, shapes.length - 1);
-    draw();
-  };
-  tl.addEventListener('pointerdown', e => { dragging = true; scrub(e); });
-  addEventListener('pointermove', e => dragging && scrub(e));
-  addEventListener('pointerup', () => { dragging = false; });
-
-  vbtns.forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation();
-    view = b.dataset.view;
-    vbtns.forEach(o => o.classList.toggle('is-on', o === b));
-    draw();
-  }));
   page.querySelector('[data-again]').addEventListener('click', e => {
     e.stopPropagation(); reset();
   });
@@ -590,11 +801,13 @@ const Make = (() => {
   const label = word => word + ' ' + (kind === 'images' ? 'Image' : 'Sound');
 
   function reset(){
-    stopLive();
-    shapes = []; head = 0;
+    stopLive(); stop();
+    shapes = []; head = -1; photo = null;
     fileBox.classList.remove('is-busy', 'is-armed');
     io.classList.remove('is-off');
     out.classList.remove('is-on');
+    if (page.classList.contains('is-on')) dressResult(false);
+    else page.classList.remove('is-result');
     fileIn.value = '';
   }
 
@@ -608,11 +821,12 @@ const Make = (() => {
     dropLbl.textContent = label('Drop');
     liveLbl.textContent = label('Live');
     fileIn.accept = kind === 'images' ? 'image/*' : 'audio/*';
+    modeBtn.hidden = kind !== 'images';     // a sound has nothing to show flat
     reset();
     return true;
   }
 
-  const close = () => { stopLive(); reset(); };
+  const close = () => { stopLive(); stop(); reset(); };
   const redraw = () => { if (shapes.length) draw(); };
 
   return { open, close, redraw, has: id => !!PRODUCTS[id] };

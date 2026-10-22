@@ -52,8 +52,8 @@ a{ color:inherit; text-decoration:none; }
 /* ── header ─────────────────────────────────────────────────────────────── */
 
 .logo{
-  position:absolute; left:30px; top:27px; z-index:10;
-  width:295px; height:43px;                 /* 369 x 54, 20% smaller */
+  position:absolute; left:21px; top:19px; z-index:11;
+  width:207px; height:30px;                 /* 369 x 54, then 20% and 30% off */
   display:block;
   color:var(--fg);
   transition: color .35s ease;
@@ -63,18 +63,43 @@ a{ color:inherit; text-decoration:none; }
 /* 20% smaller than the reference; the baseline follows so the wordmark and
    the tabs still line up along the same optical band. */
 .nav{
-  position:absolute; right:31px; top:24px; z-index:10;
-  display:flex; align-items:baseline; gap:38px;
+  position:absolute; right:22px; top:15px; z-index:11;
+  display:flex; align-items:baseline; gap:27px;
 }
 .nav__pre{
-  position:relative; top:-11px;
-  font-size:24px; line-height:1; font-weight:500;
+  position:relative; top:-10px;
+  font-size:17px; line-height:1; font-weight:500;
 }
 .nav__tab{
-  font-size:57px; line-height:1; font-weight:900;
+  font-size:40px; line-height:1; font-weight:900;
   transition: color .2s ease;
 }
 .nav__tab.is-on{ color:var(--on); }
+/* while the box is sitting behind an item, that item reads as a cut-out */
+.nav__tab.is-boxed, .logo.is-boxed{ color:var(--bg); }
+.nav__tab.is-boxed.is-on{ color:var(--bg); }
+
+/* ══ option bar box ══════════════════════════════════════════════════════════
+   Nothing until you point at something. Then it appears where the pointer is,
+   and from then on it slides to whatever you point at next, with enough
+   overshoot to land with a bump. Clicking parks it. */
+.navbox{
+  position:absolute; left:0; top:0; z-index:10;
+  background:var(--fg);
+  opacity:0;
+  transform-origin:center;
+  pointer-events:none;
+  transition: transform .34s cubic-bezier(.34,1.42,.44,1),
+              width     .34s cubic-bezier(.34,1.42,.44,1),
+              height    .34s cubic-bezier(.34,1.42,.44,1),
+              opacity   .16s ease,
+              background-color .35s ease;
+}
+.navbox.is-pop{                       /* first appearance — no sliding, just pop */
+  transition: opacity .16s ease, transform .3s cubic-bezier(.3,1.5,.5,1),
+              background-color .35s ease;
+}
+.navbox.is-on{ opacity:1; }
 
 /* ── pages ──────────────────────────────────────────────────────────────── */
 
@@ -345,26 +370,41 @@ a{ color:inherit; text-decoration:none; }
 }
 .drop.is-busy{ pointer-events:none; }
 
+.page--make.is-result .make__title{ display:none; }
 .make__out{ position:absolute; inset:0; display:none; }
 .make__out.is-on{ display:block; }
 .make__io.is-off{ display:none; }
 
-.views{
-  position:absolute; right:197px; top:300px;
-  display:flex; gap:26px; align-items:baseline;
+/* what went in, on the left — the photo cut into the bands each form came
+   from, or the sound drawn as circles. Geometry from ImageConvert_1. */
+.make__src{
+  position:absolute; left:91px; top:205px;
+  width:546px; height:709px;
 }
-.vbtn{
-  font-size:44px; line-height:1; font-weight:900;
-  opacity:.42; transition: opacity .18s ease;
-}
-.vbtn.is-on{ opacity:1; }
-.vbtn--again{ font-size:34px; }
-
+/* and what came out, on the right */
 .make__canvas{
-  position:absolute; left:155px; top:372px;
-  width:1568px; height:525px;
+  position:absolute; left:745px; top:205px;
+  width:1125px; height:709px;
 }
-.make__timeline{
-  position:absolute; left:155px; top:925px;
-  width:1568px; height:96px;
+
+.make__btns{
+  position:absolute; right:61px; top:947px;
+  display:flex; align-items:center; gap:26px;
 }
+.rbtn{
+  width:92px; height:92px; border-radius:46px;
+  border:3px solid var(--fg); color:var(--fg);
+  display:grid; place-items:center;
+  font-size:38px; line-height:1; font-weight:900;
+  transition: background-color .18s ease, color .18s ease, opacity .18s ease;
+}
+.rbtn[hidden]{ display:none; }          /* a sound has no flat view to show */
+.rbtn svg{ width:100%; height:100%; display:block; fill:currentColor; }
+.rbtn:hover, .rbtn.is-on{ background:var(--fg); color:var(--bg); }
+.rbtn--cart{ width:260px; }
+.rbtn--again{ width:72px; height:72px; border-radius:36px; opacity:.55; }
+.rbtn[data-cart].is-added{ background:var(--fg); color:var(--bg); }
+
+.i-pause{ display:none; }
+.rbtn.is-on .i-play{ display:none; }
+.rbtn.is-on .i-pause{ display:block; }

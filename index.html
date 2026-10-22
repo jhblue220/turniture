@@ -16,6 +16,7 @@
     <!-- ── header ───────────────────────────────────────── -->
     <header class="header">
       <a class="logo" href="#" data-go="home" aria-label="TURNitURE home"></a>
+      <div class="navbox" id="navbox" aria-hidden="true"></div>
       <nav class="nav">
         <span class="nav__pre">You can change</span>
         <button class="nav__tab" data-tab="images">Image</button>
@@ -72,15 +73,28 @@
         </button>
       </div>
 
-      <!-- step 3 — the result -->
+      <!-- step 3 — the result: what went in on the left, what came out on the right -->
       <div class="make__out" data-step="out">
-        <div class="views">
-          <button class="vbtn is-on" data-view="top">Top View</button>
-          <button class="vbtn" data-view="iso">3D</button>
-          <button class="vbtn vbtn--again" data-again>Again</button>
-        </div>
+        <canvas class="make__src" data-src></canvas>
         <canvas class="make__canvas" data-canvas></canvas>
-        <canvas class="make__timeline" data-timeline></canvas>
+        <div class="make__btns">
+          <button class="rbtn" data-play aria-label="Play">
+            <svg viewBox="0 0 92 92" aria-hidden="true">
+              <path class="i-play" d="M36 28 L66 46 L36 64 Z"/>
+              <path class="i-pause" d="M34 28h10v36H34z M48 28h10v36H48z"/>
+            </svg>
+          </button>
+          <button class="rbtn rbtn--mode" data-mode>2D</button>
+          <button class="rbtn rbtn--cart" data-cart>Cart</button>
+          <button class="rbtn rbtn--again" data-again aria-label="Again">
+            <svg viewBox="0 0 92 92" aria-hidden="true">
+              <path d="M62 34a22 22 0 1 0 5 15" fill="none" stroke="currentColor"
+                    stroke-width="8" stroke-linecap="round"/>
+              <path d="M66 22v16H50"  fill="none" stroke="currentColor"
+                    stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </section>
 

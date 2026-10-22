@@ -264,6 +264,51 @@ function paintTabs(){
     t.dataset.tab === page || (t.dataset.tab === 'colors' && colorsOpen)));
 }
 
+/* ── the option bar box ─────────────────────────────────────────────────────
+   It starts off screen-less. The first thing you point at makes it appear
+   there; after that it travels. A click parks it, and the parked spot is where
+   it returns when the pointer leaves. */
+
+const navbox = document.getElementById('navbox');
+const logoEl = document.querySelector('.logo');
+const boxTargets = [logoEl, ...tabs];
+let parked = null, boxAt = null;
+
+function boxRect(el){
+  const k = +getComputedStyle(document.documentElement).getPropertyValue('--k');
+  const s = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const fs = parseFloat(getComputedStyle(el).fontSize) || r.height / k;
+  const padX = fs * 0.22, padY = fs * 0.10;
+  return { x: (r.left - s.left) / k - padX, y: (r.top - s.top) / k - padY,
+           w: r.width / k + padX * 2,       h: r.height / k + padY * 2 };
+}
+
+function boxTo(el){
+  boxTargets.forEach(t => t.classList.toggle('is-boxed', t === el));
+  if (!el) { navbox.classList.remove('is-on'); boxAt = null; return; }
+  const fresh = !navbox.classList.contains('is-on');
+  const r = boxRect(el);
+  navbox.classList.toggle('is-pop', fresh);     // appear in place, or travel
+  navbox.style.width  = `${r.w}px`;
+  navbox.style.height = `${r.h}px`;
+  if (fresh) {
+    // park it small and in place, flush, then let it spring open
+    navbox.style.transform = `translate(${r.x}px, ${r.y}px) scale(.72)`;
+    void navbox.offsetWidth;
+  }
+  navbox.classList.add('is-on');
+  navbox.style.transform = `translate(${r.x}px, ${r.y}px)`;
+  boxAt = el;
+}
+
+boxTargets.forEach(el => {
+  el.addEventListener('mouseenter', () => boxTo(el));
+  el.addEventListener('mouseleave', () => { if (parked !== el) boxTo(parked); });
+  el.addEventListener('click', () => { parked = el; boxTo(el); });
+});
+// keep it on the parked item when the window resizes under it
+addEventListener('resize', () => { if (boxAt) boxTo(boxAt); });
+
 tabs.forEach(tab => tab.addEventListener('click', e => {
   e.stopPropagation();
   const t = tab.dataset.tab;
