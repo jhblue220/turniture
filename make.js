@@ -43,21 +43,24 @@ const PRODUCTS = {
     site: { w: 380, d: 380 }, layout: 'grid', cols: 4,
     form: 'box', foot: 'square',
     width: [55, 95], height: [150, 450],
-    legs: 4                    // the four corners run full length
+    hang: true,                // tops share one plane — that plane is the seat
+    legs: 4                    // so the four corners are what reach the floor
   },
   pendant: {
     name: 'Pendant', count: 5,
     site: { w: 500, d: 500 }, layout: 'row',
     form: 'shade', foot: 'circle',
     width: [60, 140], height: [80, 250],
+    pack: 0.22,                // shoulders overlap, so all five read separately
     hang: true, flex: 60       // hangs from a ceiling on a flex
   },
   shelves: {
     name: 'Shelves', count: 6,
     site: { w: 500, d: 300, h: 1000 }, layout: 'stack', cols: 2, rows: 3,
     form: 'ring', foot: 'circle',
-    width: [110, 240],         // outer diameter of the cubby
+    width: [250, 400],         // outer diameter — never small enough to look flimsy
     height: [100, 300],        // how deep it runs back
+    pack: 0.12,                // cubbies bite into each other
     wall: true
   }
 };
@@ -220,12 +223,24 @@ const Make = (() => {
           .filter(Boolean).slice(0, p.legs).forEach(s => { s.h = p.height[1]; });
       }
     } else if (p.layout === 'row') {
-      const step = p.site.w / list.length;
-      list.forEach((s, k) => {
-        s.x = (k + 0.5) * step - p.site.w / 2;
-        // a half form sticks out by its own radius, so the fat ones come forward
-        s.y = p.wall ? -s.w / 4 : 0;
-      });
+      if (p.pack) {
+        /* lay them shoulder to shoulder and let each pair bite into the other,
+           so nothing floats off on its own */
+        let acc = 0;
+        list.forEach((s, k) => {
+          if (k) acc += (list[k - 1].w + s.w) / 2 * (1 - p.pack);
+          s.x = acc;
+        });
+        const mid = (list[0].x + list[list.length - 1].x) / 2;
+        list.forEach(s => { s.x -= mid; s.y = 0; });
+      } else {
+        const step = p.site.w / list.length;
+        list.forEach((s, k) => {
+          s.x = (k + 0.5) * step - p.site.w / 2;
+          // a half form sticks out by its own radius, so the fat ones come forward
+          s.y = p.wall ? -s.w / 4 : 0;
+        });
+      }
     } else {                            // 'stack' — a wall unit, 2 across, 3 up
       /* Rows and columns are packed to whatever is actually in them rather
          than to a fixed grid, so the cubbies sit against each other and the
@@ -236,10 +251,11 @@ const Make = (() => {
         colW[s.col] = Math.max(colW[s.col] || 0, s.w);
         rowH[s.row] = Math.max(rowH[s.row] || 0, s.w);
       });
-      const xs = []; let acc = -colW.reduce((a, b) => a + b, 0) / 2;
-      colW.forEach((v, i) => { xs[i] = acc + v / 2; acc += v; });
+      const k = 1 - (p.pack || 0);          // how far neighbours bite in
+      const xs = []; let acc = -colW.reduce((a, b) => a + b, 0) * k / 2;
+      colW.forEach((v, i) => { xs[i] = acc + v / 2; acc += v * k; });
       const zs = []; acc = 0;
-      rowH.forEach((v, i) => { zs[i] = acc + v / 2; acc += v; });
+      rowH.forEach((v, i) => { zs[i] = acc + v / 2; acc += v * k; });
       list.forEach(s => {
         s.x = xs[s.col];
         s.y = 0;                        // the open face is flush with the front
@@ -272,7 +288,7 @@ const Make = (() => {
 
   /* One form, flat, drawn into a w x h box whose bottom edge sits on (0,0).
      These are the same silhouettes the picker page already uses. */
-  function silhouette(g, form, w, h, p){
+  function silhouette(g, form, w, h, p, flex){
     const hw = w / 2;
     g.beginPath();
     if (form === 'cone') {                           // Tray — point down
@@ -284,7 +300,7 @@ const Make = (() => {
       g.quadraticCurveTo(hw * 0.84, 0, 0, 0);
       g.quadraticCurveTo(-hw * 0.84, 0, -hw * 0.88, -h * 0.58);
     } else if (form === 'shade') {                   // Pendant — cone on a flex
-      const flex = p.flex || 0, t = Math.max(1.5, w * 0.02);
+      const t = Math.max(1.5, w * 0.02);
       g.rect(-t / 2, -h, t, flex);
       g.moveTo(0, -h + flex); g.lineTo(hw, 0); g.lineTo(-hw, 0);
     } else {                                         // Side Table — round foot
@@ -346,22 +362,35 @@ const Make = (() => {
     g.restore();
   }
 
+  /* How the piece is turned. Dragging across the canvas spins it; dragging up
+     and down tilts between looking at it almost level and looking down on it.
+     A piece that lives on a wall starts nearly face on, the way you would meet
+     it in a room; one on the floor starts at a three-quarter view. */
+  let yaw = 0, pitch = 0;
+  const START = { floor: [0.61, 0.56], wall: [0.24, 0.24] };
+  const resetAngles = () => { [yaw, pitch] = START[prod.wall ? 'wall' : 'floor']; };
+
   function drawIso(){
     const { g, w, h } = fit(cv);
     if (!shapes.length) return;
-    const COS = Math.cos(Math.PI / 6), SIN = Math.sin(Math.PI / 6);
-    /* A piece on the floor is drawn isometrically. A piece on a wall keeps its
-       horizontal line — you look at it straight on, the way you would in a
-       room — and depth only pushes up and to the right. */
-    const at = prod.wall
-      ? sh => ({ px: sh.x + sh.y * 0.5, py: -sh.z - sh.y * 0.29 })
-      : sh => ({ px: (sh.x - sh.y) * COS, py: (sh.x + sh.y) * SIN - sh.z });
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const sp = Math.sin(pitch), kz = Math.cos(pitch);   // kz squashes heights
+
+    // turn the piece about its upright axis, then tip it towards the viewer
+    const at = sh => {
+      const xr =  sh.x * cy + sh.y * sy;
+      const yr = -sh.x * sy + sh.y * cy;
+      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr };
+    };
 
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
     for (const sh of shapes) {
       const { px, py } = at(sh);
-      x0 = Math.min(x0, px - sh.w / 2); x1 = Math.max(x1, px + sh.w / 2);
-      y0 = Math.min(y0, py - sh.hv);    y1 = Math.max(y1, py);
+      const back = sh.depth || 0;
+      x0 = Math.min(x0, px - sh.w / 2);
+      x1 = Math.max(x1, px + sh.w / 2 + back * sy);
+      y0 = Math.min(y0, py - sh.hv * kz - back * cy * sp);
+      y1 = Math.max(y1, py + sh.w / 2 * sp);
     }
     const s = Math.min(w / (x1 - x0), h / (y1 - y0)) * 0.86;
     g.save();
@@ -370,17 +399,17 @@ const Make = (() => {
     g.translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
     g.lineWidth = 2 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
 
-    // far forms first, so the near ones overlap them
-    shapes.map((sh, i) => ({ sh, i, d: prod.wall ? -sh.z : sh.x + sh.y }))
-          .sort((a, b) => a.d - b.d)
+    // furthest away first, so the near ones paint over them
+    shapes.map((sh, i) => ({ sh, i, d: at(sh).depth }))
+          .sort((a, b) => b.d - a.d)
           .forEach(({ sh, i }) => {
             const { px, py } = at(sh);
             g.save(); g.translate(px, py);
             g.fillStyle = i === head ? css('--bg') : css('--fg');
-            if (prod.form === 'ring') { tube(g, sh, i); g.restore(); return; }
-            silhouette(g, prod.form, sh.w, sh.hv, prod);
+            if (prod.form === 'ring') { tube(g, sh, i, sy, cy * sp); g.restore(); return; }
+            silhouette(g, prod.form, sh.w, sh.hv * kz, prod, (prod.flex || 0) * kz);
             g.fill('evenodd'); g.stroke();
-            if (cap(g, prod.form, sh.w, sh.hv, SIN)) { g.fill(); g.stroke(); }
+            if (cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
             g.restore();
           });
     g.restore();
@@ -390,8 +419,8 @@ const Make = (() => {
      at the front. The body is painted as three plain fills — the front disc,
      the back disc and the band between them — rather than one path, so there
      is no winding rule to get wrong where they overlap. */
-  function tube(g, sh, i){
-    const r = sh.w / 2, bx = sh.depth * 0.5, by = -sh.depth * 0.29;
+  function tube(g, sh, i, dirX, dirY){
+    const r = sh.w / 2, bx = sh.depth * dirX, by = -sh.depth * dirY;
     const ang = Math.atan2(by, bx);
     const nx = -Math.sin(ang) * r, ny = Math.cos(ang) * r;
     const cy = -r;                                   // front centre
@@ -437,6 +466,7 @@ const Make = (() => {
     if (!frames.length) { reset(); return; }
     shapes = build(frames);
     head = 0;
+    resetAngles();
     io.classList.add('is-off');
     out.classList.add('is-on');
     draw();
@@ -517,6 +547,24 @@ const Make = (() => {
   }
 
   /* ── timeline scrubbing ─────────────────────────────────────────────────── */
+
+  /* drag the canvas to turn the piece */
+  let turning = null;
+  cv.addEventListener('pointerdown', e => {
+    if (view !== 'iso' || !shapes.length) return;
+    e.stopPropagation();
+    turning = { x: e.clientX, y: e.clientY };
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!turning) return;
+    yaw   += (e.clientX - turning.x) * 0.012;
+    pitch  = clamp(pitch + (e.clientY - turning.y) * 0.010, 0.05, 1.45);
+    turning = { x: e.clientX, y: e.clientY };
+    draw();
+  });
+  ['pointerup', 'pointercancel'].forEach(t =>
+    cv.addEventListener(t, () => { turning = null; }));
 
   let dragging = false;
   const scrub = e => {
