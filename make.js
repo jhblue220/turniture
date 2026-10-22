@@ -525,16 +525,19 @@ const Make = (() => {
     const sp = Math.sin(pitch), kz = Math.cos(pitch);   // kz squashes heights
 
     // turn the piece about its upright axis, then tip it towards the viewer
-    /* Screen position and true distance from the eye. Tipping the view is a
-       rotation in the (ground, height) plane, so the axis that runs into the
-       screen is yr·cos − z·sin. Sorting on the ground position alone left a
-       row of pendants — all at the same y — in arbitrary order, so a near one
-       could end up painted behind a far one. */
+    /* Every form stands (or hangs) along the same upright axis, so which one
+       covers which is settled on the ground: the eye is in front, and the one
+       with the smaller ground depth is nearer whatever the tilt. Height is
+       only a tie-break, for forms stacked at one spot.
+
+       Folding height into the depth itself was wrong — a Side Table's tops all
+       share one plane while the lengths vary enormously, so a long column
+       sorted as though it stood far away and its neighbours' lids landed on
+       top of it. */
     const at = sh => {
       const xr =  sh.x * cy + sh.y * sy;
       const yr = -sh.x * sy + sh.y * cy;
-      const mid = sh.z + sh.hv / 2;
-      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr * kz - mid * sp };
+      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr - sh.z * 1e-4 };
     };
 
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -575,7 +578,9 @@ const Make = (() => {
             }
             silhouette(g, prod.form, sh.w, sh.hv * kz, prod, (prod.flex || 0) * kz);
             g.fill('evenodd'); g.stroke();
-            if (cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
+            // the lid shows when you are above it, the open mouth when below
+            const facing = prod.form === 'shade' ? sp < 0 : sp > 0;
+            if (facing && cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
             g.globalAlpha = 1;
             g.restore();
           });
