@@ -48,7 +48,7 @@ const PRODUCTS = {
     form: 'box', foot: 'square',
     width: [55, 95], height: [60, 450],
     rankHeights: true,         // spread the lengths right across the range
-    fillCells: true,           // every box fills its cell, so the block is solid
+    boxy: true,                // width, depth and height all read differently
     hang: true,                // tops share one plane — that plane is the seat
     legs: 4                    // so the four corners are what reach the floor
   },
@@ -297,11 +297,17 @@ const Make = (() => {
     const vols = used.map(f => f.vol).sort((a, b) => a - b);
     const deps = used.map(f => f.depth).sort((a, b) => a - b);
 
+    const mixes = used.map(f => f.vol * f.depth).sort((a, b) => a - b);
+    const span = (r, t) => Math.round(r[0] + t * (r[1] - r[0]));
+
     const list = used.map(f => ({
       at: f.at ?? 0,
-      w: Math.round(p.width[0] + pct(vols, f.vol) * (p.width[1] - p.width[0])),
-      h: Math.round(p.height[0] + (p.rankHeights ? pct(deps, f.depth) : f.depth)
-                                  * (p.height[1] - p.height[0]))
+      w: span(p.width, pct(vols, f.vol)),
+      /* A box has a depth of its own as well as a width. Reading it from the
+         pitch rather than the loudness keeps the two from moving together. */
+      wy: p.boxy ? span(p.width, pct(deps, f.depth)) : undefined,
+      h: span(p.height, p.boxy ? pct(mixes, f.vol * f.depth)
+                               : p.rankHeights ? pct(deps, f.depth) : f.depth)
     }));
 
     if (p.layout === 'radial') {
@@ -334,24 +340,22 @@ const Make = (() => {
         s.x = (c + 0.5 - cols / 2) * (p.site.w / cols);
         s.y = (r + 0.5 - rows / 2) * (p.site.d / rows);
       });
-      if (p.fillCells) {
-        /* Each column takes the width of its widest box and each row the depth
-           of its deepest, then every box is stretched to fill its cell. The
-           block comes out solid — boxes have flat sides, so anything less than
-           edge to edge reads as a gap. */
+      if (p.boxy) {
+        /* Every box keeps its own width and its own depth — stretching them to
+           fill a cell made the whole thing one regular lump. Instead the cell
+           takes the size of the SMALLEST box in its column (or row), so no box
+           is ever narrower than its cell and neighbours always meet. Gaps left
+           in the middle are fine; pieces floating free are not. */
         const cw = [], rd = [];
         list.forEach(s => {
-          cw[s.col] = Math.max(cw[s.col] || 0, s.w);
-          rd[s.row] = Math.max(rd[s.row] || 0, s.w);
+          cw[s.col] = Math.min(cw[s.col] ?? Infinity, s.w);
+          rd[s.row] = Math.min(rd[s.row] ?? Infinity, s.wy);
         });
         const xs = []; let acc = -cw.reduce((a, b) => a + b, 0) / 2;
         cw.forEach((v, i) => { xs[i] = acc + v / 2; acc += v; });
         const ys = []; acc = -rd.reduce((a, b) => a + b, 0) / 2;
         rd.forEach((v, i) => { ys[i] = acc + v / 2; acc += v; });
-        list.forEach(s => {
-          s.x = xs[s.col]; s.y = ys[s.row];
-          s.w = cw[s.col]; s.wy = rd[s.row];
-        });
+        list.forEach(s => { s.x = xs[s.col]; s.y = ys[s.row]; });
       }
       if (p.connectStrays) connectStrays(list, p.width[1]);
       if (p.legs) {                    // the four corners become the legs
@@ -374,8 +378,11 @@ const Make = (() => {
         const step = p.site.w / list.length;
         list.forEach((s, k) => {
           s.x = (k + 0.5) * step - p.site.w / 2;
-          // a half form sticks out by its own radius, so the fat ones come forward
-          s.y = p.wall ? -s.w / 4 : 0;
+          /* A wall piece is cut flat on its back, and every one of those cuts
+             has to land in the same plane or it will not sit against the wall.
+             Offsetting each by its own radius pushed the fat ones forward and
+             left the backs in a staircase. */
+          s.y = 0;
         });
       }
     } else {                            // 'stack' — a wall unit, 2 across, 3 up
@@ -476,7 +483,7 @@ const Make = (() => {
     const r = w / 2, ry = (wy || w) / 2;
     g.beginPath();
     if (foot === 'square')    g.rect(-r, -ry, w, ry * 2);
-    else if (foot === 'half') g.arc(0, 0, r, 0, Math.PI);   // flat edge on the wall
+    else if (foot === 'half') g.arc(0, 0, r, Math.PI, Math.PI * 2);  // flat edge to the wall
     else                      g.arc(0, 0, r, 0, Math.PI * 2);
     g.closePath();
   }
@@ -636,10 +643,15 @@ const Make = (() => {
     };
 
     if (form === 'capsule') {                       // flat on top, round below
-      for (let i = 0; i <= RINGS; i++) {
-        const z = hv * i / RINGS;
-        ring(z, z < r ? Math.sqrt(Math.max(0, r * r - (r - z) * (r - z))) : r);
+      /* The round foot gets its own rings. Spacing them along the whole length
+         put the first one almost at the equator, so the hull ran straight from
+         there to the tip and the foot came out pointed. */
+      const CAP = 7;
+      for (let i = 0; i <= CAP; i++) {
+        const t = i / CAP, z = r * (1 - Math.cos(t * Math.PI / 2));
+        ring(z, r * Math.sin(t * Math.PI / 2));
       }
+      for (let i = 1; i <= RINGS; i++) ring(r + (hv - r) * i / RINGS, r);
     } else if (form === 'cone') {                   // point down, disc on top
       for (let i = 0; i <= RINGS; i++) { const t = i / RINGS; ring(hv * t, r * t); }
     } else if (form === 'shade') {                  // mouth down, point up
