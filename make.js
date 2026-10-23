@@ -46,7 +46,9 @@ const PRODUCTS = {
     name: 'Stool', count: 16,
     site: { w: 380, d: 380 }, layout: 'grid', cols: 4,
     form: 'box', foot: 'square',
-    width: [55, 95], height: [150, 450],
+    width: [55, 95], height: [60, 450],
+    rankHeights: true,         // spread the lengths right across the range
+    fillCells: true,           // every box fills its cell, so the block is solid
     hang: true,                // tops share one plane — that plane is the seat
     legs: 4                    // so the four corners are what reach the floor
   },
@@ -58,15 +60,6 @@ const PRODUCTS = {
     pack: 0.22,                // shoulders overlap, so all five read separately
     hang: true, flex: 60,      // hangs from a ceiling on a flex
     view3d: [0.55, -0.38]      // seen from underneath, where you would stand
-  },
-  shelves: {
-    name: 'Shelves', count: 6,
-    site: { w: 500, d: 300, h: 1000 }, layout: 'stack', cols: 2, rows: 3,
-    form: 'ring', foot: 'circle',
-    width: [250, 400],         // outer diameter — never small enough to look flimsy
-    height: [100, 300],        // how deep it runs back
-    pack: 0.12,                // cubbies bite into each other
-    wall: true
   }
 };
 
@@ -99,6 +92,16 @@ const Make = (() => {
   const STEP = 620;                     // ms each form is held while playing
 
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  /* Half-lit rather than see-through. Fading the form out made it harder to
+     pick out, not easier — against the background it just went faint. */
+  function dim(hex){
+    const h = hex.replace('#', '');
+    const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return `rgb(${r >> 1},${g >> 1},${b >> 1})`;
+  }
+  const inkFor = i => (i === head ? dim(css('--fg')) : css('--fg'));
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   /* ── frames ─────────────────────────────────────────────────────────────── */
@@ -331,6 +334,25 @@ const Make = (() => {
         s.x = (c + 0.5 - cols / 2) * (p.site.w / cols);
         s.y = (r + 0.5 - rows / 2) * (p.site.d / rows);
       });
+      if (p.fillCells) {
+        /* Each column takes the width of its widest box and each row the depth
+           of its deepest, then every box is stretched to fill its cell. The
+           block comes out solid — boxes have flat sides, so anything less than
+           edge to edge reads as a gap. */
+        const cw = [], rd = [];
+        list.forEach(s => {
+          cw[s.col] = Math.max(cw[s.col] || 0, s.w);
+          rd[s.row] = Math.max(rd[s.row] || 0, s.w);
+        });
+        const xs = []; let acc = -cw.reduce((a, b) => a + b, 0) / 2;
+        cw.forEach((v, i) => { xs[i] = acc + v / 2; acc += v; });
+        const ys = []; acc = -rd.reduce((a, b) => a + b, 0) / 2;
+        rd.forEach((v, i) => { ys[i] = acc + v / 2; acc += v; });
+        list.forEach(s => {
+          s.x = xs[s.col]; s.y = ys[s.row];
+          s.w = cw[s.col]; s.wy = rd[s.row];
+        });
+      }
       if (p.connectStrays) connectStrays(list, p.width[1]);
       if (p.legs) {                    // the four corners become the legs
         const corner = s => (s.col === 0 || s.col === cols - 1) &&
@@ -450,10 +472,10 @@ const Make = (() => {
   }
 
   /* the footprint, seen from straight above */
-  function footprint(g, foot, w){
-    const r = w / 2;
+  function footprint(g, foot, w, wy){
+    const r = w / 2, ry = (wy || w) / 2;
     g.beginPath();
-    if (foot === 'square')    g.rect(-r, -r, w, w);
+    if (foot === 'square')    g.rect(-r, -ry, w, ry * 2);
     else if (foot === 'half') g.arc(0, 0, r, 0, Math.PI);   // flat edge on the wall
     else                      g.arc(0, 0, r, 0, Math.PI * 2);
     g.closePath();
@@ -498,10 +520,9 @@ const Make = (() => {
     shapes.map((sh, i) => ({ sh, i })).sort((a, b) => b.sh.w - a.sh.w)
           .forEach(({ sh, i }) => {
             g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
-            footprint(g, prod.foot, sh.w);
-            g.globalAlpha = i === head ? 0.4 : 1;
-            g.fillStyle = css('--fg');
-            g.fill(); g.stroke(); g.globalAlpha = 1; g.restore();
+            footprint(g, prod.foot, sh.w, sh.wy);
+            g.fillStyle = inkFor(i);
+            g.fill(); g.stroke(); g.restore();
           });
     g.restore();
   }
@@ -534,10 +555,16 @@ const Make = (() => {
        share one plane while the lengths vary enormously, so a long column
        sorted as though it stood far away and its neighbours' lids landed on
        top of it. */
+    /* Depth is taken at whichever end of the form is turned towards the eye —
+       its top when you look down on it, its bottom when you look up. Measuring
+       at the base made a long pendant sort as though it hung far away, so a
+       short one in front of it was painted over the top. Measuring at the
+       middle broke the Side Table instead, whose tops all share one plane. */
     const at = sh => {
       const xr =  sh.x * cy + sh.y * sy;
       const yr = -sh.x * sy + sh.y * cy;
-      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr - sh.z * 1e-4 };
+      const near = sp >= 0 ? sh.z + sh.hv : sh.z;
+      return { px: xr, py: -yr * sp - sh.z * kz, depth: yr * kz - near * sp };
     };
 
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
@@ -563,36 +590,113 @@ const Make = (() => {
     shapes.map((sh, i) => ({ sh, i, d: at(sh).depth }))
           .sort((a, b) => b.d - a.d)
           .forEach(({ sh, i }) => {
-            const { px, py } = at(sh);
-            g.save(); g.translate(px, py);
-            g.globalAlpha = i === head ? 0.4 : 1;      // the one being pointed out
-            g.fillStyle = css('--fg');
-            if (prod.form === 'ring') { tube(g, sh, i, sy, cy * sp); g.restore(); return; }
-            if (prod.form === 'box') {
-              g.restore();                                // boxes turn with the view
-              g.save(); g.globalAlpha = i === head ? 0.4 : 1;
-              g.fillStyle = css('--fg');
-              cuboid(g, sh, cy, sy, sp, kz);
-              g.globalAlpha = 1; g.restore();
-              return;
+            g.save();
+            g.fillStyle = inkFor(i);
+            if (prod.form === 'box') { cuboid(g, sh, cy, sy, sp, kz); g.restore(); return; }
+
+            // project the real surface, then outline whatever it covers
+            const put = ([lx, ly, lz]) => {
+              const wx = sh.x + lx, wy = sh.y + ly, wz = sh.z + lz;
+              const xr =  wx * cy + wy * sy;
+              const yr = -wx * sy + wy * cy;
+              return [xr, -yr * sp - wz * kz];
+            };
+            poly(g, hull(surface(prod.form, sh, prod).map(put)));
+            g.fill(); g.stroke();
+
+            // the flat face, when it is turned towards you
+            if (prod.form === 'shade' ? sp < 0 : sp > 0) {
+              poly(g, rim(prod.form, sh, prod).map(put));
+              g.fill(); g.stroke();
             }
-            silhouette(g, prod.form, sh.w, sh.hv * kz, prod, (prod.flex || 0) * kz);
-            g.fill('evenodd'); g.stroke();
-            // the lid shows when you are above it, the open mouth when below
-            const facing = prod.form === 'shade' ? sp < 0 : sp > 0;
-            if (facing && cap(g, prod.form, sh.w, sh.hv * kz, sp)) { g.fill(); g.stroke(); }
-            g.globalAlpha = 1;
             g.restore();
           });
     g.restore();
   }
+
+  /* ── solids ──────────────────────────────────────────────────────────────
+     Every form except the box is convex, so its outline on screen is just the
+     convex hull of its surface points once they are projected. Sampling the
+     real surface is what makes a column look round from underneath: a fixed
+     silhouette is only ever right at one tilt, which is why the Side Table and
+     the Tray went flat when you looked up at them. */
+
+  const RINGS = 11, SEG = 16;
+
+  function surface(form, sh, p){
+    const r = sh.w / 2, hv = sh.hv, pts = [];
+    const ring = (z, R, half) => {
+      if (R < 1e-6) { pts.push([0, 0, z]); return; }
+      const n = half ? SEG : SEG;
+      for (let i = 0; i < n; i++) {
+        const a = half ? Math.PI * i / (n - 1) : Math.PI * 2 * i / n;
+        pts.push([R * Math.cos(a), half ? -R * Math.sin(a) : R * Math.sin(a), z]);
+      }
+      if (half) { pts.push([-R, 0, z]); pts.push([R, 0, z]); }   // the cut face
+    };
+
+    if (form === 'capsule') {                       // flat on top, round below
+      for (let i = 0; i <= RINGS; i++) {
+        const z = hv * i / RINGS;
+        ring(z, z < r ? Math.sqrt(Math.max(0, r * r - (r - z) * (r - z))) : r);
+      }
+    } else if (form === 'cone') {                   // point down, disc on top
+      for (let i = 0; i <= RINGS; i++) { const t = i / RINGS; ring(hv * t, r * t); }
+    } else if (form === 'shade') {                  // mouth down, point up
+      const flex = (p.flex || 0), cone = hv - flex;
+      for (let i = 0; i <= RINGS; i++) { const t = i / RINGS; ring(cone * t, r * (1 - t)); }
+      const t = Math.max(1.5, r * 0.04);
+      ring(cone, t); ring(hv, t);
+    } else {                                        // dome — half an ellipsoid
+      for (let i = 0; i <= RINGS; i++) {
+        const z = hv * i / RINGS, u = (hv - z) / hv;
+        ring(z, r * Math.sqrt(Math.max(0, 1 - u * u)), true);
+      }
+    }
+    return pts;
+  }
+
+  /* the boundary of the one flat face, so it can be outlined when it faces you */
+  function rim(form, sh, p){
+    const r = sh.w / 2, pts = [];
+    const z = form === 'shade' ? 0 : sh.hv;
+    const half = form === 'dome';
+    const n = SEG * 2;
+    for (let i = 0; i < n; i++) {
+      const a = half ? Math.PI * i / (n - 1) : Math.PI * 2 * i / n;
+      pts.push([r * Math.cos(a), half ? -r * Math.sin(a) : r * Math.sin(a), z]);
+    }
+    return pts;
+  }
+
+  /* Andrew's monotone chain */
+  function hull(pts){
+    const q = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+    const half = src => {
+      const h = [];
+      for (const pt of src) {
+        while (h.length >= 2 && cross(h[h.length-2], h[h.length-1], pt) <= 0) h.pop();
+        h.push(pt);
+      }
+      h.pop(); return h;
+    };
+    return q.length < 3 ? q : half(q).concat(half(q.slice().reverse()));
+  }
+
+  const poly = (g, pts) => {
+    g.beginPath();
+    g.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+    g.closePath();
+  };
 
   /* A box has flat sides, so unlike a column or a cone it cannot be drawn as
      one outline with a lid stuck on — turn the view and its faces have to turn
      with it. Project the eight corners, keep the three faces pointing at the
      eye, and paint them back to front. */
   function cuboid(g, sh, cy, sy, sp, kz){
-    const r = sh.w / 2;
+    const r = sh.w / 2, ry = (sh.wy || sh.w) / 2;
     const pt = (dx, dy, z) => {
       const wx = sh.x + dx, wy = sh.y + dy;
       const xr =  wx * cy + wy * sy;
@@ -600,7 +704,7 @@ const Make = (() => {
       return { x: xr, y: -yr * sp - z * kz, d: yr * kz - z * sp };
     };
     const z0 = sh.z, z1 = sh.z + sh.hv;
-    const c = [[-r,-r],[r,-r],[r,r],[-r,r]].map(([dx,dy]) => [pt(dx,dy,z0), pt(dx,dy,z1)]);
+    const c = [[-r,-ry],[r,-ry],[r,ry],[-r,ry]].map(([dx,dy]) => [pt(dx,dy,z0), pt(dx,dy,z1)]);
     const faces = [
       [c[0][1], c[1][1], c[2][1], c[3][1]],       // top
       [c[0][0], c[3][0], c[2][0], c[1][0]],       // bottom
@@ -698,10 +802,9 @@ const Make = (() => {
           .map((sh, i) => ({ sh, i })).sort((a, b) => b.sh.w - a.sh.w)
           .forEach(({ sh, i }) => {
             g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
-            footprint(g, prod.foot, sh.w);
-            g.globalAlpha = i === head && playing ? 0.4 : 1;
-            g.fillStyle = css('--fg');
-            g.fill(); g.stroke(); g.globalAlpha = 1; g.restore();
+            footprint(g, prod.foot, sh.w, sh.wy);
+            g.fillStyle = i === head && playing ? dim(css('--fg')) : css('--fg');
+            g.fill(); g.stroke(); g.restore();
           });
     g.restore();
 
