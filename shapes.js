@@ -104,8 +104,10 @@ const ITEMS = [
 ];
 
 /* Palette sampled from Color.png / ColorChanged.png.
-   Slot 1 = foreground (type + shapes), slot 2 = background. */
+   Slot 1 = foreground (type + shapes), slot 2 = background.
+   The last one is not the mockup's #027C66 — that sat too close to the first
+   swatch to tell them apart in the column. */
 const PALETTE = [
   '#00A698', '#6F5D00', '#7B0D66', '#FF8D23',
-  '#FFD500', '#841125', '#ACD7B4', '#027C66'
+  '#FFD500', '#841125', '#ACD7B4', '#B47D75'
 ];
