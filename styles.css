@@ -387,6 +387,24 @@ a{ color:inherit; text-decoration:none; }
   width:1125px; height:709px;
 }
 
+/* Scrubbing through a recording. A long take is hard to walk through a form
+   at a time, so the bar lets you jump straight to a moment. */
+.scrub{
+  position:absolute; left:61px; top:976px;
+  width:1270px; height:34px;
+  touch-action:none;
+}
+.scrub[hidden]{ display:none; }
+.scrub__track{
+  position:absolute; left:0; right:0; top:13px; height:8px;
+  border-radius:4px; background:var(--fg);
+}
+.scrub__knob{
+  position:absolute; top:0; left:0; width:34px; height:34px;
+  margin-left:-17px; border-radius:50%;
+  background:var(--fg);
+}
+
 .make__btns{
   position:absolute; right:61px; top:947px;
   display:flex; align-items:center; gap:26px;

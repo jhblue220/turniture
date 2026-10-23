@@ -76,6 +76,8 @@ const Make = (() => {
   const cam      = page.querySelector('.drop__cam');
   const cv       = page.querySelector('[data-canvas]');
   const src      = page.querySelector('[data-src]');
+  const scrub    = page.querySelector('[data-scrub]');
+  const knob     = page.querySelector('[data-knob]');
   const playBtn  = page.querySelector('[data-play]');
   const modeBtn  = page.querySelector('[data-mode]');
   const cartBtn  = page.querySelector('[data-cart]');
@@ -804,7 +806,7 @@ const Make = (() => {
     /* A sound has no picture, so the left panel shows the same piece from
        straight above — each form arriving in its own place as it is made,
        rather than in a queue down the side. */
-    const done = playing ? head + 1 : shapes.length;
+    const done = head >= 0 ? head + 1 : shapes.length;
     let G = 1;
     for (const sh of shapes) G = Math.max(G, Math.hypot(sh.x, sh.y) + sh.w / 2);
     const s = Math.min(w, h) / 2 / G * 0.86;
@@ -815,12 +817,12 @@ const Make = (() => {
           .forEach(({ sh, i }) => {
             g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
             footprint(g, prod.foot, sh.w, sh.wy);
-            g.fillStyle = i === head && playing ? dim(css('--fg')) : css('--fg');
+            g.fillStyle = i === head ? dim(css('--fg')) : css('--fg');
             g.fill(); g.stroke(); g.restore();
           });
     g.restore();
 
-    if (playing && head >= 0 && head < shapes.length) {    // the one being made
+    if (head >= 0 && head < shapes.length && playing) {    // the one being made
       const t = performance.now() / 1000;
       const R = Math.min(w, h) * 0.085, N = 8;
       const cxp = w / 2 + shapes[head].x * s, cyp = h / 2 + (prod.wall ? 0 : shapes[head].y) * s;
@@ -843,7 +845,35 @@ const Make = (() => {
     return e;
   }
 
-  const draw = () => { (view === 'top' ? drawTop : drawIso)(); drawSrc(); };
+  /* 0..1 along the take */
+  const at01 = () => take && take.duration
+    ? take.currentTime / take.duration
+    : shapes.length > 1 ? Math.max(head, 0) / (shapes.length - 1) : 0;
+
+  function drawScrub(){
+    if (scrub.hidden) return;
+    knob.style.left = `${at01() * scrub.clientWidth}px`;
+  }
+
+  function seek(t){
+    const k = clamp(t, 0, 1);
+    if (take && take.duration) take.currentTime = k * take.duration;
+    head = Math.min(shapes.length - 1, Math.floor(k * shapes.length));
+    draw();
+  }
+
+  let scrubbing = false;
+  const fromEvent = e => (e.clientX - scrub.getBoundingClientRect().left)
+                       / scrub.getBoundingClientRect().width;
+  scrub.addEventListener('pointerdown', e => {
+    e.stopPropagation(); scrubbing = true;
+    scrub.setPointerCapture?.(e.pointerId);
+    seek(fromEvent(e));
+  });
+  addEventListener('pointermove', e => { if (scrubbing) seek(fromEvent(e)); });
+  addEventListener('pointerup',   () => { scrubbing = false; });
+
+  const draw = () => { (view === 'top' ? drawTop : drawIso)(); drawSrc(); drawScrub(); };
 
   /* ── input ──────────────────────────────────────────────────────────────── */
 
@@ -864,6 +894,7 @@ const Make = (() => {
     resetAngles();
     io.classList.add('is-off');
     out.classList.add('is-on');
+    scrub.hidden = kind !== 'sounds';
     dressResult(true);
     draw();
   }
@@ -967,9 +998,13 @@ const Make = (() => {
 
   function play(){
     if (!shapes.length) return;
-    playing = true; playFrom = performance.now(); head = 0;
+    playing = true; playFrom = performance.now();
     playBtn.classList.add('is-on');
-    if (take) { take.currentTime = 0; take.play().catch(() => {}); }
+    // carry on from wherever the bar was left, unless it is at the end
+    if (take) {
+      if (!take.duration || take.currentTime >= take.duration - 0.05) take.currentTime = 0;
+      take.play().catch(() => {});
+    } else head = 0;
     cancelAnimationFrame(frame); frame = requestAnimationFrame(tick);
   }
 
@@ -1028,6 +1063,7 @@ const Make = (() => {
     fileBox.classList.remove('is-busy', 'is-armed');
     io.classList.remove('is-off');
     out.classList.remove('is-on');
+    scrub.hidden = true;
     if (page.classList.contains('is-on')) dressResult(false);
     else page.classList.remove('is-result');
     fileIn.value = '';
