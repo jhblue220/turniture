@@ -247,14 +247,15 @@ a{ color:inherit; text-decoration:none; }
 .colors.is-open .swatch,
 .colors.is-open .colors__close{ pointer-events:auto; }
 
-/* The list is anchored on the CENTRE of the first chip (1794, 154); every
-   hit target is a 98px circle around that centre, while the chip you see
-   stays 60px. 100px pitch - 98px target = 2px, so they never overlap. */
-.colors__list{ position:absolute; left:1794px; top:154px; }
+/* The list is anchored on the CENTRE of the first chip (1794, 130); every
+   hit target is a 58px circle around that centre, while the chip you see
+   stays 46px. 60px pitch - 58px target = 2px, so they never overlap.
+   Fourteen colours at the old 100px pitch would have run off the artboard. */
+.colors__list{ position:absolute; left:1794px; top:130px; }
 
 .swatch{
-  position:absolute; left:-49px;
-  width:98px; height:98px; border-radius:50%;
+  position:absolute; left:-29px;
+  width:58px; height:58px; border-radius:50%;
   display:grid; place-items:center;
   opacity:0; transform:translateY(-26px);
   transition: opacity .28s ease, transform .34s cubic-bezier(.22,.9,.3,1);
@@ -263,9 +264,9 @@ a{ color:inherit; text-decoration:none; }
 
 .swatch__chip{
   position:relative;
-  width:60px; height:60px; border-radius:50%;
+  width:46px; height:46px; border-radius:50%;
   display:grid; place-items:center;
-  font-size:22px; font-weight:600; color:#FFFFFF;
+  font-size:17px; font-weight:600; color:#FFFFFF;
 }
 .swatch.is-picked .swatch__chip::after{
   content:''; position:absolute; inset:0; border-radius:50%;
@@ -275,8 +276,8 @@ a{ color:inherit; text-decoration:none; }
 .swatch.is-picked .swatch__n{ opacity:1; }
 
 .colors__close{
-  position:absolute; left:1745px; top:905px;
-  width:98px; height:98px;
+  position:absolute; left:1765px; top:956px;
+  width:58px; height:58px;
   display:grid; place-items:center;
   opacity:0; transform:translateY(-26px);
   transition: opacity .28s ease .32s, transform .34s cubic-bezier(.22,.9,.3,1) .32s;

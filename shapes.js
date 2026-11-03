@@ -103,11 +103,29 @@ const ITEMS = [
   }
 ];
 
-/* Palette sampled from Color.png / ColorChanged.png.
-   Slot 1 = foreground (type + shapes), slot 2 = background.
-   The last one is not the mockup's #027C66 — that sat too close to the first
-   swatch to tell them apart in the column. */
+/* Slot 1 = foreground (type + shapes), slot 2 = background. */
 const PALETTE = [
-  '#00A698', '#6F5D00', '#7B0D66', '#FF8D23',
-  '#FFD500', '#841125', '#ACD7B4', '#B47D75'
+  '#F4E4DD', '#ECB7CD', '#72071C', '#FA9543', '#D19C46',
+  '#B4D3B4', '#99BE3C', '#0F8668', '#66D3CC', '#658A95',
+  '#675BA1', '#B47D75', '#3E342B', '#313335'
 ];
+
+/* How light a colour reads, 0..1 — used to keep the opening pair apart. */
+function luminance(hex){
+  const n = parseInt(hex.slice(1), 16);
+  const f = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+}
+
+/* Two to start with, drawn at random each time the page opens. They have to
+   be far enough apart in brightness or the type sinks into the background —
+   two of these fourteen are pale and several are nearly black. */
+function openingPair(){
+  const n = PALETTE.length;
+  const pairs = [];
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      if (i !== j && Math.abs(luminance(PALETTE[i]) - luminance(PALETTE[j])) > 0.22)
+        pairs.push([i, j]);
+  return pairs[Math.floor(Math.random() * pairs.length)] || [0, n - 1];
+}

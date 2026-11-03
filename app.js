@@ -12,7 +12,9 @@ const TITLES = { images: 'Turn your image into', sounds: 'Turn your sound into' 
 
 let page = 'home';          // 'home' | 'images' | 'sounds'
 let colorsOpen = false;
-let slots = { 1: 0, 2: 1 }; // 1 = foreground, 2 = background
+// 1 = foreground, 2 = background — a different pair every time you arrive
+const [startFg, startBg] = openingPair();
+let slots = { 1: startFg, 2: startBg };
 let nextSlot = 1;
 
 /* ── artboard scaling ───────────────────────────────────────────────────── */
@@ -324,7 +326,7 @@ document.querySelector('.logo').addEventListener('click', e => {
 /* ── colour panel ───────────────────────────────────────────────────────── */
 
 swatchesEl.innerHTML = PALETTE.map((c, i) => `
-  <button class="swatch" data-i="${i}" style="top:${i * 100 - 49}px" aria-label="colour ${i + 1}">
+  <button class="swatch" data-i="${i}" style="top:${i * 60 - 29}px" aria-label="colour ${i + 1}">
     <span class="swatch__chip" style="background:${c}"><span class="swatch__n"></span></span>
   </button>`).join('');
 
