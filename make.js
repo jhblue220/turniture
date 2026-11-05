@@ -74,7 +74,7 @@ const Make = (() => {
   const dropLbl  = page.querySelector('[data-drop-label]');
   const liveLbl  = page.querySelector('[data-live-label]');
   const cam      = page.querySelector('.drop__cam');
-  const cv       = page.querySelector('[data-canvas]');
+  let   cv       = page.querySelector('[data-canvas]');   // see paint()
   const src      = page.querySelector('[data-src]');
   const scrub    = page.querySelector('[data-scrub]');
   const knob     = page.querySelector('[data-knob]');
@@ -82,7 +82,7 @@ const Make = (() => {
   const modeBtn  = page.querySelector('[data-mode]');
   const cartBtn  = page.querySelector('[data-cart]');
 
-  let prod = null, kind = 'images';     // 'images' | 'sounds'
+  let prod = null, prodId = '', kind = 'images';   // 'images' | 'sounds'
   let shapes = [];                      // the forms, in mm
   let view = 'iso';
   let head = -1;                        // which form is being pointed out
@@ -103,7 +103,12 @@ const Make = (() => {
     const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
     return `rgb(${r >> 1},${g >> 1},${b >> 1})`;
   }
-  const inkFor = i => (i === head ? dim(css('--fg')) : css('--fg'));
+  /* On the bill the paper IS the --fg colour, so a piece drawn there has to
+     come out the other way round. */
+  let flipInk = false;
+  const ink  = () => css(flipInk ? '--bg' : '--fg');
+  const edge = () => css(flipInk ? '--fg' : '--bg');
+  const inkFor = i => (i === head ? dim(ink()) : ink());
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   /* ── frames ─────────────────────────────────────────────────────────────── */
@@ -524,7 +529,7 @@ const Make = (() => {
     if (!shapes.length) return;
     const s = fixedScale();
     g.save(); g.translate(w / 2, h / 2); g.scale(s, s);
-    g.lineWidth = 3 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
+    g.lineWidth = 3 / s; g.strokeStyle = edge(); g.lineJoin = 'round';
     // biggest first, so a small one in front of a big one still reads
     shapes.map((sh, i) => ({ sh, i })).sort((a, b) => b.sh.w - a.sh.w)
           .forEach(({ sh, i }) => {
@@ -593,7 +598,7 @@ const Make = (() => {
     g.translate(w / 2, h / 2);
     g.scale(s, s);
     g.translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
-    g.lineWidth = 2 / s; g.strokeStyle = css('--bg'); g.lineJoin = 'round';
+    g.lineWidth = 2 / s; g.strokeStyle = edge(); g.lineJoin = 'round';
 
     // furthest away first, so the near ones paint over them
     shapes.map((sh, i) => ({ sh, i, d: at(sh).depth }))
@@ -1028,8 +1033,10 @@ const Make = (() => {
     draw();
   });
 
-  cartBtn.addEventListener('click', e => {               // the basket comes later
+  cartBtn.addEventListener('click', e => {
     e.stopPropagation();
+    if (!shapes.length) return;
+    Cart.add(snapshot());          // cart.js is loaded ahead of this one
     cartBtn.classList.add('is-added');
     setTimeout(() => cartBtn.classList.remove('is-added'), 700);
   });
@@ -1076,7 +1083,8 @@ const Make = (() => {
 
   function open(id, tab){
     prod = PRODUCTS[id];
-    if (!prod) return false;                 // only Side Table and Tray so far
+    if (!prod) return false;
+    prodId = id;
     kind = tab;
     nameEl.textContent = prod.name;
     dropLbl.textContent = label('Drop');
@@ -1090,5 +1098,33 @@ const Make = (() => {
   const close = () => { stopLive(); stop(); reset(); };
   const redraw = () => { if (shapes.length) draw(); };
 
-  return { open, close, redraw, has: id => !!PRODUCTS[id] };
+  /* ── lending the renderer out ───────────────────────────────────────────
+     The cart shows the pieces themselves, not pictures of them, so that they
+     re-colour with the page like everything else. A snapshot is the forms in
+     mm plus the angle they were left at — enough to draw the same piece again
+     anywhere. paint() points the renderer at another canvas for one call and
+     puts the result screen's own state back afterwards; the listeners on the
+     real canvas are bound to the element, not to this variable, so swapping
+     it is safe. */
+  const snapshot = () => shapes.length ? {
+    id: prodId, name: prod.name, kind,
+    shapes: shapes.map(s => ({ ...s })),
+    angles: [yaw, pitch]
+  } : null;
+
+  function paint(canvas, snap, flip){
+    if (!snap || !PRODUCTS[snap.id]) return;
+    const keep = { cv, shapes, prod, prodId, yaw, pitch, head, view, scale: scaleFixed };
+    cv = canvas;
+    shapes = snap.shapes; prod = PRODUCTS[snap.id]; prodId = snap.id;
+    [yaw, pitch] = snap.angles; head = -1; view = 'iso'; flipInk = !!flip;
+    measureScale();
+    drawIso();
+    flipInk = false;
+    cv = keep.cv; shapes = keep.shapes; prod = keep.prod; prodId = keep.prodId;
+    yaw = keep.yaw; pitch = keep.pitch; head = keep.head; view = keep.view;
+    scaleFixed = keep.scale;
+  }
+
+  return { open, close, redraw, snapshot, paint, has: id => !!PRODUCTS[id] };
 })();

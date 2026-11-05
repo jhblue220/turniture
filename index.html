@@ -37,6 +37,8 @@
         <button class="nav__tab" data-tab="images">Image</button>
         <button class="nav__tab" data-tab="sounds">Sound</button>
         <button class="nav__tab" data-tab="colors">Colors</button>
+        <button class="nav__icon nav__icon--profile" data-go="profile" aria-label="Profile"></button>
+        <button class="nav__icon nav__icon--cart" data-go="cart" aria-label="Cart"></button>
       </nav>
     </header>
 
@@ -117,6 +119,119 @@
       </div>
     </section>
 
+    <!-- ── profile ──────────────────────────────────────────
+         A picture of yourself and three lines about you. The fields are
+         locked until EDIT; typing fills them in (01_Profile_02).        -->
+    <section class="page page--profile" data-page="profile">
+      <button class="avatar" id="avatar" aria-label="Choose a profile picture">
+        <span class="avatar__glyph"></span>
+        <img class="avatar__img" alt="" hidden>
+        <video class="avatar__cam" playsinline muted hidden></video>
+        <span class="avatar__hint" data-avatar-hint hidden>Take It</span>
+      </button>
+      <div class="pick" id="avatarPick" hidden>
+        <button class="pick__b" data-pick="live">Take one now</button>
+        <button class="pick__b" data-pick="file">Choose a file</button>
+      </div>
+      <input type="file" accept="image/*" hidden id="avatarFile">
+
+      <div class="pform" id="pform">
+        <label class="pfield" data-k="name">
+          <span class="pfield__k">Name</span>
+          <input class="pfield__v" type="text" autocomplete="off" disabled>
+        </label>
+        <label class="pfield" data-k="mail">
+          <span class="pfield__k">E-Mail</span>
+          <input class="pfield__v" type="email" autocomplete="off" disabled>
+        </label>
+        <label class="pfield pfield--tall" data-k="addr">
+          <span class="pfield__k">Address</span>
+          <textarea class="pfield__v" autocomplete="off" disabled></textarea>
+        </label>
+      </div>
+
+      <div class="pbtns">
+        <button class="pbtn" id="pEdit">EDIT</button>
+        <button class="pbtn pbtn--fill" id="pSave">SAVE</button>
+      </div>
+    </section>
+
+    <!-- ── cart ─────────────────────────────────────────────
+         1 what you made, loose on the floor and draggable, with the bill
+         beside it · 2 where it goes · 3 how you pay · 4 the receipt.   -->
+    <section class="page page--cart" data-page="cart" data-step="1">
+
+      <h2 class="cart__title">YOUR OWN..</h2>
+      <div class="floor" id="floor"></div>
+      <p class="floor__empty" id="floorEmpty">Nothing in here yet.</p>
+
+      <!-- step 1 — the bill down the right -->
+      <div class="paper paper--side" data-cstep="1">
+        <div class="paper__sheet"></div>
+        <div class="paper__fold"></div>
+        <div class="paper__in">
+          <h3 class="paper__t">Bill-Paper</h3>
+          <div class="rule"></div>
+          <div class="bill" data-bill="side"></div>
+          <div class="paper__btns">
+            <button class="pill" id="cartBuy">Buy</button>
+            <button class="rnd" id="cartTrash" aria-label="Empty the cart"></button>
+            <button class="rnd" id="cartTicket" aria-label="Apply the coupon"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- steps 2 · 3 — the same sheet, opened out -->
+      <div class="paper paper--wide" data-cstep="23">
+        <div class="paper__sheet"></div>
+        <div class="paper__fold"></div>
+        <div class="paper__in">
+          <h3 class="paper__t">Bill-Paper</h3>
+          <div class="rule rule--wide"></div>
+          <div class="bill bill--wide" data-bill="wide"></div>
+
+          <form class="cform" data-cform="2" autocomplete="off">
+            <div class="crow">
+              <input class="cin" placeholder="First Name">
+              <input class="cin" placeholder="Last Name">
+            </div>
+            <div class="crow"><input class="cin" placeholder="Apartment, Suite, etc (optional)"></div>
+            <div class="crow"><input class="cin" placeholder="City"></div>
+            <div class="crow crow--3">
+              <span class="csel"><select data-sel="county"></select></span>
+              <span class="csel"><select data-sel="zip"></select></span>
+              <span class="csel"><select data-sel="country"></select></span>
+            </div>
+            <div class="crow"><input class="cin" placeholder="Optional"></div>
+            <label class="ccheck"><input type="checkbox"><span class="ccheck__b"></span>Save it!</label>
+            <button class="pill pill--wide" data-go-step="3">Continue</button>
+          </form>
+
+          <form class="cform" data-cform="3" autocomplete="off">
+            <div class="crow"><input class="cin" placeholder="Cardholder Name"></div>
+            <div class="crow"><input class="cin" placeholder="Card Number" inputmode="numeric"></div>
+            <div class="crow crow--3">
+              <span class="csel"><select data-sel="month"></select></span>
+              <span class="csel"><select data-sel="year"></select></span>
+              <input class="cin" placeholder="CVC" inputmode="numeric" maxlength="4">
+            </div>
+            <label class="ccheck"><input type="checkbox"><span class="ccheck__b"></span>Save it!</label>
+            <button class="pill pill--wide" id="cartPay">Pay</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- step 4 — the receipt, which then leaves -->
+      <div class="paper paper--slip" data-cstep="4">
+        <div class="paper__sheet"></div>
+        <div class="paper__fold"></div>
+        <div class="paper__in">
+          <h3 class="paper__t paper__t--slip">Thank You</h3>
+          <div class="slip__items" id="slipItems"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ── color panel ──────────────────────────────────── -->
     <aside class="colors" id="colors" aria-hidden="true">
       <div class="colors__blur" aria-hidden="true">
@@ -135,9 +250,13 @@
   </div>
 </div>
 <script src="logo.js"></script>
+<script src="icons.js"></script>
 <script src="shapes.js"></script>
 <script src="intro.js"></script>
+<script src="cart.js"></script>
 <script src="make.js"></script>
+<script src="profile.js"></script>
+<script src="checkout.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

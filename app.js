@@ -7,10 +7,11 @@ const swatchesEl = document.getElementById('swatches');
 const titleEl = document.querySelector('[data-title]');
 const pages   = document.querySelectorAll('.page');
 const tabs    = document.querySelectorAll('.nav__tab');
+const navIcons = [...document.querySelectorAll('.nav__icon')];
 
 const TITLES = { images: 'Turn your image into', sounds: 'Turn your sound into' };
 
-let page = 'home';          // 'home' | 'images' | 'sounds'
+let page = 'home';          // 'home' | 'images' | 'sounds' | 'profile' | 'cart'
 let colorsOpen = false;
 // 1 = foreground, 2 = background — a different pair every time you arrive
 const [startFg, startBg] = openingPair();
@@ -30,6 +31,7 @@ addEventListener('resize', () => { k = fit(); });
 /* ── items ──────────────────────────────────────────────────────────────── */
 
 document.querySelector('.logo').innerHTML = LOGO_SVG;
+navIcons.forEach(b => { b.innerHTML = ICONS[b.dataset.go]; });
 
 const restSvg = s =>
   `<svg class="s-rest" viewBox="0 0 ${s.w} ${s.h}" width="${s.w}" height="${s.h}">
@@ -246,24 +248,31 @@ nextBtn.addEventListener('click', e => { e.stopPropagation(); slide(pos + 1); })
 
 /* ── navigation ─────────────────────────────────────────────────────────── */
 
-/* 'home' | 'images' | 'sounds' show their own page; 'make' keeps whichever
-   picker tab we came from lit, and runs the palette the other way round. */
+/* Each name shows the page of the same name; 'images' / 'sounds' share the
+   picker. 'make' keeps whichever picker tab we came from lit, and runs the
+   palette the other way round. */
+const OWN = ['home', 'profile', 'cart'];
+
 function show(next, making){
   if (!making) Make.close();
+  if (next !== 'profile') Profile.close();
+  if (next !== 'cart')    Checkout.close();
   page = next;
-  const shown = making ? 'make' : next === 'home' ? 'home' : 'picker';
+  const shown = making ? 'make' : OWN.includes(next) ? next : 'picker';
   pages.forEach(p => p.classList.toggle('is-on', p.dataset.page === shown));
   document.documentElement.classList.toggle('is-flip', !!making);
-  if (next !== 'home') titleEl.textContent = TITLES[next];
+  if (TITLES[next]) titleEl.textContent = TITLES[next];
   // the title sequence only runs while the main page is on screen
   next === 'home' ? Intro.start() : Intro.stop();
   paintTabs();
   if (making) Make.redraw();
+  if (next === 'cart') Checkout.open();
 }
 
 function paintTabs(){
   tabs.forEach(t => t.classList.toggle('is-on',
     t.dataset.tab === page || (t.dataset.tab === 'colors' && colorsOpen)));
+  navIcons.forEach(b => b.classList.toggle('is-on', b.dataset.go === page));
 }
 
 /* ── the option bar box ─────────────────────────────────────────────────────
@@ -273,7 +282,7 @@ function paintTabs(){
 
 const navbox = document.getElementById('navbox');
 const logoEl = document.querySelector('.logo');
-const boxTargets = [logoEl, ...tabs];
+const boxTargets = [logoEl, ...tabs, ...navIcons];
 let parked = null, boxAt = null;
 
 function boxRect(el){
@@ -323,6 +332,11 @@ document.querySelector('.logo').addEventListener('click', e => {
   show('home');
 });
 
+navIcons.forEach(b => b.addEventListener('click', e => {
+  e.stopPropagation();
+  show(b.dataset.go);
+}));
+
 /* ── colour panel ───────────────────────────────────────────────────────── */
 
 swatchesEl.innerHTML = PALETTE.map((c, i) => `
@@ -345,7 +359,9 @@ function applyColors(){
   r.setProperty('--c1', PALETTE[slots[1]]);
   r.setProperty('--c2', PALETTE[slots[2]]);
   paintSwatches();
-  Make.redraw();        // canvas pixels do not follow CSS variables
+  // canvas pixels do not follow CSS variables — both panels have to redraw
+  Make.redraw();
+  Checkout.redraw();
 }
 
 swatchEls.forEach(el => el.addEventListener('click', e => {
@@ -402,7 +418,8 @@ addEventListener('mousemove', e => {
   moveCursor();
 });
 
-const HOT = '.item, .nav__tab, .swatch, .colors__close, .arrow, .logo';
+const HOT = '.item, .nav__tab, .nav__icon, .swatch, .colors__close, .arrow, .logo,'
+          + '.avatar, .pick__b, .pbtn, .pill, .rnd, .piece, .piece__x, .cin, .csel, .ccheck';
 document.addEventListener('mouseover', e => {
   const next = !!e.target.closest(HOT);
   if (next !== small) { small = next; cursor.classList.toggle('is-small', small); }
