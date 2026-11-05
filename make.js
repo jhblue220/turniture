@@ -887,7 +887,6 @@ const Make = (() => {
   async function run(frames){
     if (!frames.length) { reset(); return; }
     shapes = build(frames);
-    measureScale();
     head = -1;
     view = 'iso';
     modeBtn.textContent = '2D';
@@ -896,6 +895,10 @@ const Make = (() => {
     out.classList.add('is-on');
     scrub.hidden = kind !== 'sounds';
     dressResult(true);
+    /* after the result step is on screen, never before: until then the panel
+       is display:none and measures 0, and the scale would be taken from the
+       fallback size instead of the canvas the piece is about to be drawn in */
+    measureScale();
     draw();
   }
 

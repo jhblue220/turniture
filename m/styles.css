@@ -1,0 +1,461 @@
+/* ==========================================================================
+   TURNitURE — phone layout.
+
+   The desktop page is one 1920 x 1080 artboard scaled to fit, which on a
+   phone lands at about 20% and is unreadable. Here the artboard is 390 wide
+   — the width every number below is authored in — and scaled to the screen's
+   width alone, so the horizontal composition is identical on every handset
+   while the height stays real: --vh is the window height in artboard units,
+   and anything that has to breathe is anchored to both top and bottom.
+
+   The card on the picker page is the desktop card at exactly 0.70, so its
+   internal proportions are the ones that were measured off the mockups.
+   ========================================================================== */
+
+:root{
+  --c1: #00A698;   /* colour slot 1 — type, shapes, boxes */
+  --c2: #6F5D00;   /* colour slot 2 — page background     */
+  --fg: var(--c1);
+  --bg: var(--c2);
+  --on: #FFFFFF;   /* active tab                          */
+  --k : 1;         /* artboard scale,  set from app.js    */
+  --vh: 844;       /* window height in artboard units     */
+  --s : .7;        /* card scale against the 1920 artboard */
+}
+/* the "Let's Make" step runs the palette the other way round, as in Tray_01 */
+:root.is-flip{ --fg: var(--c2); --bg: var(--c1); }
+
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  height:100%;
+  background:var(--bg);
+  transition: background-color .35s ease;
+}
+
+body{
+  font-family:'Avenir','Avenir Next','Montserrat',system-ui,-apple-system,sans-serif;
+  font-weight:900;
+  letter-spacing:-.04em;                    /* -4% everywhere */
+  color:var(--fg);
+  overflow:hidden;
+  -webkit-text-size-adjust:100%;
+  overscroll-behavior:none;
+}
+button{ font:inherit; color:inherit; background:none; border:0; }
+a{ color:inherit; text-decoration:none; }
+
+.viewport{
+  position:fixed; inset:0;
+  display:flex; align-items:flex-start; justify-content:center;
+}
+
+/* Scaled about the top edge so the artboard's own height, measured in these
+   same units, always matches the window exactly. */
+.stage{
+  position:relative;
+  width:390px; height:calc(var(--vh) * 1px);
+  flex:0 0 auto;
+  transform:scale(var(--k));
+  transform-origin:top center;
+  touch-action:manipulation;
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+
+.logo{
+  position:absolute; left:16px; top:20px; z-index:11;
+  width:150px; height:22px;                 /* 369 x 54, to the same ratio */
+  display:block;
+  color:var(--fg);
+  transition: color .35s ease;
+}
+.logo svg{ display:block; width:100%; height:100%; }
+
+/* Two right-aligned lines: 390px will not hold the desktop's single row. */
+.nav{
+  position:absolute; right:16px; top:50px; z-index:11;
+  display:flex; flex-direction:column; align-items:flex-end;
+}
+.nav__pre{ font-size:11px; line-height:1; font-weight:500; }
+.nav__tabs{ display:flex; align-items:baseline; gap:18px; }
+.nav__tab{
+  /* 28px of type inside a 48px tall target — the type sets the composition,
+     the padding makes it tappable. */
+  font-size:28px; line-height:1; font-weight:900;
+  padding:10px 2px; margin:0 -2px;
+  transition: color .2s ease;
+}
+.nav__tab.is-on{ color:var(--on); }
+/* while the box is sitting behind an item, that item reads as a cut-out */
+.nav__tab.is-boxed, .logo.is-boxed{ color:var(--bg); }
+.nav__tab.is-boxed.is-on{ color:var(--bg); }
+
+/* ══ option bar box ══════════════════════════════════════════════════════════
+   With no pointer to follow there is nothing to chase: the box appears where
+   you tap and parks there, so it reads as a marker for the open tab. */
+.navbox{
+  position:absolute; left:0; top:0; z-index:10;
+  background:var(--fg);
+  opacity:0;
+  transform-origin:center;
+  pointer-events:none;
+  transition: transform .34s cubic-bezier(.34,1.42,.44,1),
+              width     .34s cubic-bezier(.34,1.42,.44,1),
+              height    .34s cubic-bezier(.34,1.42,.44,1),
+              opacity   .16s ease,
+              background-color .35s ease;
+}
+.navbox.is-pop{                       /* first appearance — no sliding, just pop */
+  transition: opacity .16s ease, transform .3s cubic-bezier(.3,1.5,.5,1),
+              background-color .35s ease;
+}
+.navbox.is-on{ opacity:1; }
+
+/* ── pages ──────────────────────────────────────────────────────────────── */
+
+.page{ position:absolute; inset:0; display:none; }
+.page.is-on{ display:block; }
+
+/* main page — the looping title sequence (see ../intro.js), at the same share
+   of the width as the 메인_1 hero: 251/1920 of 390. */
+.intro{
+  position:absolute; inset:0;
+  font-size:51px; line-height:1; font-weight:900;
+}
+.intro__line{
+  position:absolute; left:50%; top:50%;
+  white-space:nowrap;
+  opacity:0; visibility:hidden;
+  transition: opacity .46s ease, visibility 0s linear .46s;
+}
+.intro__line.is-on{
+  opacity:1; visibility:visible;
+  transition: opacity .46s ease, visibility 0s;
+}
+.intro__fx{
+  display:block;
+  transform:translate(-50%,-50%) scale(.975);
+  transform-origin:center;
+  transition: transform .62s cubic-bezier(.2,.8,.25,1);
+}
+.intro__line.is-on .intro__fx{ transform:translate(-50%,-50%) scale(1); }
+
+/* intro.js keeps the word centred by translating it half its own width, which
+   is why this one is not -50%. */
+#introWord .intro__fx{ transform:translate(0,-50%) scale(.975); }
+#introWord.is-on .intro__fx{ transform:translate(0,-50%) scale(1); }
+.word{ display:inline-block; transition: transform .16s ease-out, letter-spacing .16s ease-out; }
+.word.is-stretch{ transition: transform .62s cubic-bezier(.4,0,.2,1), letter-spacing .62s cubic-bezier(.4,0,.2,1); }
+#introTagline .intro__fx.is-stretch{ transition: transform .62s cubic-bezier(.2,.8,.25,1), letter-spacing .62s cubic-bezier(.4,0,.2,1); }
+.is-instant{ transition:none !important; }
+.word .ch{ display:inline-block; text-align:center; }
+
+/* the width the tagline has to track out to before it dissolves into the
+   wordmark — the desktop 1700/1920, carried over */
+#introLogo .intro__fx{ width:340px; color:var(--fg); }
+#introLogo svg{ display:block; width:100%; height:auto; }
+
+/* ── images / sounds page ───────────────────────────────────────────────── */
+
+/* The desktop sets this on one 140px line. At this width it wraps, so it is
+   given a measure to wrap inside rather than being left to the screen edge. */
+.picker__title{
+  position:absolute; left:16px; top:118px; width:300px;
+  font-size:46px; line-height:.95; font-weight:900;
+}
+
+/* ── the card ───────────────────────────────────────────────────────────────
+   One 286px cell centred on a 390px screen, so 52px of each neighbour shows
+   at the edges. Swipe or tap the arrows to step; see app.js.             */
+
+.window{
+  position:absolute; left:0; right:0; top:212px; bottom:92px;
+  overflow:hidden;
+  touch-action:none;                          /* the swipe is ours to read */
+}
+/* The step is a flat 330, not the card's own pitch: the card is at most 390
+   wide and centred, so a step this long parks the neighbours past both edges
+   instead of letting a sliver of the next label bleed in. */
+.items{
+  position:absolute; left:calc((390px - var(--s) * 361px) / 2);  /* centres card 0 */
+  top:0; right:0; bottom:0;
+  transform:translateX(calc(var(--pos, 0) * -330px));
+  transition: transform var(--slide);
+}
+
+:root{ --slide: .52s cubic-bezier(.34,1.28,.4,1); }   /* snappy, slight overshoot */
+
+/* Every number on the card is the desktop card's, taken at --s, so its
+   internal proportions stay the measured ones whatever the card is sized to.
+   app.js picks --s from the height the window actually has, which is what
+   keeps a short handset from cropping the card instead of shrinking it. */
+.item{
+  position:absolute;
+  top:calc(50% - var(--s) * 287px);
+  left:calc(var(--i) * 330px);
+  width:calc(var(--s) * 361px); height:calc(var(--s) * 574px);
+}
+
+/* the box that grows out of the centre when the card opens */
+.item__box{
+  position:absolute; inset:0;
+  background:var(--fg);
+  opacity:0;
+  transform:scale(.72);
+  transition: transform .34s cubic-bezier(.22,.9,.3,1), opacity .22s ease,
+              background-color .35s ease;
+}
+.item.is-hot .item__box{ opacity:1; transform:scale(1); }
+
+.item__shape{
+  position:absolute; left:0; right:0; bottom:calc(var(--s) * 209px); height:0;
+}
+.item__shape svg{
+  display:block; position:absolute; left:50%; bottom:calc(0px - var(--dy, 0px));
+  transform:translateX(-50%);
+}
+.item__shape svg path{ transition: fill .35s ease; }
+.item__shape .s-rest { fill:var(--fg); transition: opacity .18s ease, fill .35s ease; }
+.item__shape .s-hover{ fill:var(--bg); opacity:0; transition: opacity .18s ease .06s, fill .35s ease; }
+.item.is-hot .s-rest { opacity:0; }
+.item.is-hot .s-hover{ opacity:1; }
+
+.item__label{
+  position:absolute; left:0; right:0; top:calc(var(--s) * 404px);
+  text-align:center;
+  font-size:calc(var(--s) * 61px); line-height:1; font-weight:900;
+  transition: color .2s ease;
+}
+.item__size{
+  position:absolute; left:0; right:0; top:calc(var(--s) * 464px);
+  text-align:center;
+  font-size:calc(var(--s) * 44px); line-height:1; font-weight:800;   /* Heavy */
+  color:var(--bg);
+  opacity:0;
+  transition: opacity .2s ease, color .35s ease;
+}
+.item.is-hot .item__label{ color:var(--bg); }
+.item.is-hot .item__size { opacity:1; }
+
+/* ── pager ──────────────────────────────────────────────────────────────────
+   The desktop puts the arrows outside the window, which here would mean on
+   top of the cropped neighbours. They sit under the card instead, with the
+   dots between them — with one card visible there is otherwise nothing to
+   say where in the five you are. */
+.pager{
+  position:absolute; left:0; right:0; bottom:28px; height:44px;
+  display:flex; align-items:center; justify-content:center; gap:22px;
+}
+.arrow{
+  width:44px; height:44px; flex:0 0 auto; color:var(--fg);
+  transition: opacity .25s ease;
+}
+.arrow svg{ display:block; width:100%; height:100%; }
+.arrow--prev{ transform:scaleX(-1); }              /* same glyph, mirrored */
+.arrow.is-off{ opacity:.22; pointer-events:none; }
+
+.dots{ display:flex; align-items:center; gap:9px; }
+.dot{
+  width:7px; height:7px; border-radius:50%;
+  background:var(--fg); opacity:.3;
+  transition: opacity .25s ease, transform .25s ease, background-color .35s ease;
+}
+.dot.is-on{ opacity:1; transform:scale(1.35); }
+
+/* ── colour panel ───────────────────────────────────────────────────────── */
+
+.colors{
+  position:absolute; inset:0;
+  pointer-events:none;          /* only the swatches themselves are tappable */
+  visibility:hidden;
+}
+.colors.is-open{ visibility:visible; }
+.colors.is-open .swatch,
+.colors.is-open .colors__close{ pointer-events:auto; }
+
+/* Fourteen chips down the right edge. The pitch is not fixed: the column is
+   anchored top and bottom and spreads them, so a short handset packs them
+   closer instead of running the last ones off the screen. */
+.colors__list{
+  position:absolute; right:12px; top:108px; bottom:76px; width:46px;
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:space-between;
+}
+.swatch{
+  width:46px; height:46px; border-radius:50%;
+  flex:0 0 auto;
+  display:grid; place-items:center;
+  opacity:0; transform:translateY(-22px);
+  transition: opacity .28s ease, transform .34s cubic-bezier(.22,.9,.3,1);
+}
+.colors.is-open .swatch{ opacity:1; transform:translateY(0); }
+
+.swatch__chip{
+  position:relative;
+  width:34px; height:34px; border-radius:50%;
+  display:grid; place-items:center;
+  font-size:14px; font-weight:600; color:#FFFFFF;
+}
+.swatch.is-picked .swatch__chip::after{
+  content:''; position:absolute; inset:0; border-radius:50%;
+  background:rgba(0,0,0,.3);
+}
+.swatch__n{ position:relative; z-index:1; opacity:0; transition:opacity .18s ease; }
+.swatch.is-picked .swatch__n{ opacity:1; }
+
+.colors__close{
+  position:absolute; right:12px; bottom:20px;
+  width:46px; height:46px;
+  display:grid; place-items:center;
+  opacity:0; transform:translateY(-22px);
+  transition: opacity .28s ease .32s, transform .34s cubic-bezier(.22,.9,.3,1) .32s;
+}
+.colors.is-open .colors__close{ opacity:1; transform:translateY(0); }
+.colors__close svg{ display:block; width:36px; height:36px; }
+
+/* ── progressive blur behind the chips ───────────────────────────────────
+   Six stacked backdrop layers, each blurring a little harder and masked a
+   little further right, so the blur ramps up from nothing on the left of the
+   strip to full strength at the screen edge. */
+.colors__blur{
+  position:absolute; right:0; top:80px; bottom:0; width:150px;
+  opacity:0; transition:opacity .3s ease;
+  --blur-max:16px;
+}
+.colors.is-open .colors__blur{ opacity:1; }
+.colors__blur > div{ position:absolute; inset:0; }
+
+.colors__blur > div:nth-child(1){ backdrop-filter:blur(calc(var(--blur-max) / 28));
+  -webkit-mask-image:linear-gradient(to right, transparent 0%,  #000 16%, #000 33%, transparent 50%);
+          mask-image:linear-gradient(to right, transparent 0%,  #000 16%, #000 33%, transparent 50%); }
+.colors__blur > div:nth-child(2){ backdrop-filter:blur(calc(var(--blur-max) / 14));
+  -webkit-mask-image:linear-gradient(to right, transparent 16%, #000 33%, #000 50%, transparent 66%);
+          mask-image:linear-gradient(to right, transparent 16%, #000 33%, #000 50%, transparent 66%); }
+.colors__blur > div:nth-child(3){ backdrop-filter:blur(calc(var(--blur-max) / 7));
+  -webkit-mask-image:linear-gradient(to right, transparent 33%, #000 50%, #000 66%, transparent 83%);
+          mask-image:linear-gradient(to right, transparent 33%, #000 50%, #000 66%, transparent 83%); }
+.colors__blur > div:nth-child(4){ backdrop-filter:blur(calc(var(--blur-max) / 3.5));
+  -webkit-mask-image:linear-gradient(to right, transparent 50%, #000 66%, #000 83%, transparent 100%);
+          mask-image:linear-gradient(to right, transparent 50%, #000 66%, #000 83%, transparent 100%); }
+.colors__blur > div:nth-child(5){ backdrop-filter:blur(calc(var(--blur-max) / 1.75));
+  -webkit-mask-image:linear-gradient(to right, transparent 66%, #000 83%, #000 100%);
+          mask-image:linear-gradient(to right, transparent 66%, #000 83%, #000 100%); }
+.colors__blur > div:nth-child(6){ backdrop-filter:blur(var(--blur-max));
+  -webkit-mask-image:linear-gradient(to right, transparent 83%, #000 100%);
+          mask-image:linear-gradient(to right, transparent 83%, #000 100%); }
+
+/* ══ make page ═══════════════════════════════════════════════════════════════
+   The desktop sets the two input boxes side by side and the result in two
+   columns. Both stack here, and both steps are anchored top and bottom so
+   they fill whatever height the handset has.                                */
+
+.make__title{
+  position:absolute; left:16px; right:16px; top:124px;
+  text-align:center;
+  font-size:38px; line-height:.95; font-weight:900;
+}
+
+.make__io{
+  position:absolute; left:16px; right:16px; top:200px; bottom:36px;
+  display:flex; flex-direction:column; align-items:stretch;
+  justify-content:space-between;
+}
+.make__or{ font-size:26px; line-height:1; font-weight:900; text-align:center; padding:10px 0; }
+
+.drop{
+  position:relative;
+  flex:1 1 0; min-height:0;
+  border:3px solid var(--fg);
+  display:grid; place-items:center;
+  overflow:hidden;
+  transition: background-color .18s ease, color .18s ease;
+}
+/* no hover on a touch screen — the fill is the press itself */
+.drop:active, .drop.is-armed{ background:var(--fg); color:var(--bg); }
+.drop__label{ font-size:26px; line-height:1; font-weight:900; position:relative; z-index:1; }
+.drop__cam{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; transform:scaleX(-1);        /* mirrored, like a mirror */
+  filter:grayscale(1) contrast(1.1);
+}
+.drop.is-busy{ pointer-events:none; }
+
+.page--make.is-result .make__title{ display:none; }
+.make__out{ position:absolute; inset:0; display:none; }
+.make__out.is-on{ display:block; }
+.make__io.is-off{ display:none; }
+
+/* what went in, on top — the photo cut into the bands each form came from,
+   or the sound drawn as circles */
+/* Both canvases are sized outright rather than stretched between left/right
+   and top/bottom. A <canvas> is a replaced element: its width and height
+   ATTRIBUTES are its intrinsic size, so with width:auto the box takes those
+   and the opposite offset is dropped as over-constrained — and since make.js
+   sets the attributes from the box it measures, the two feed each other and
+   the canvas doubles on every draw. The desktop sheet gives both a fixed
+   size, which is why it never ran into this. --vh is the stage height, so
+   the height below is still the whole of what is left. */
+.make__src{
+  position:absolute; left:16px; top:124px;
+  width:calc(100% - 32px); height:212px;
+}
+/* and what came out, below it, taking everything that is left: 348 above it,
+   100 of buttons below — 150 when a recording puts a scrub bar there too,
+   which app.js marks with has-scrub. */
+.make__canvas{
+  position:absolute; left:16px; top:348px;
+  width:calc(100% - 32px); height:calc(var(--vh) * 1px - 448px);
+  touch-action:none;                    /* drag to turn, not to scroll */
+}
+:root.has-scrub .make__canvas{ height:calc(var(--vh) * 1px - 498px); }
+
+/* Scrubbing through a recording. A long take is hard to walk through a form
+   at a time, so the bar lets you jump straight to a moment. */
+.scrub{
+  position:absolute; left:16px; right:16px; bottom:102px; height:34px;
+  touch-action:none;
+}
+.scrub[hidden]{ display:none; }
+.scrub__track{
+  position:absolute; left:0; right:0; top:13px; height:8px;
+  border-radius:4px; background:var(--fg);
+}
+.scrub__knob{
+  position:absolute; top:0; left:0; width:34px; height:34px;
+  margin-left:-17px; border-radius:50%;
+  background:var(--fg);
+}
+
+.make__btns{
+  position:absolute; left:16px; right:16px; bottom:26px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.rbtn{
+  width:56px; height:56px; border-radius:28px;
+  border:3px solid var(--fg); color:var(--fg);
+  display:grid; place-items:center;
+  font-size:23px; line-height:1; font-weight:900;
+  transition: background-color .18s ease, color .18s ease, opacity .18s ease;
+}
+.rbtn[hidden]{ display:none; }          /* a sound has no flat view to show */
+.rbtn svg{ width:100%; height:100%; display:block; fill:currentColor; }
+.rbtn:active, .rbtn.is-on{ background:var(--fg); color:var(--bg); }
+.rbtn--cart{ width:140px; }
+.rbtn--again{ width:46px; height:46px; border-radius:23px; opacity:.55; }
+.rbtn[data-cart].is-added{ background:var(--fg); color:var(--bg); }
+
+.i-pause{ display:none; }
+.rbtn.is-on .i-play{ display:none; }
+.rbtn.is-on .i-pause{ display:block; }
+
+/* ── sideways ───────────────────────────────────────────────────────────── */
+
+.rotate{ display:none; }
+@media (orientation: landscape) and (max-height: 540px){
+  .viewport{ display:none; }
+  .rotate{
+    position:fixed; inset:0; display:grid; place-items:center;
+    font-size:22px; font-weight:900; color:var(--fg); text-align:center; padding:24px;
+  }
+}
