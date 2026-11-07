@@ -102,11 +102,21 @@ const Make = (() => {
 
   /* Half-lit rather than see-through. Fading the form out made it harder to
      pick out, not easier — against the background it just went faint. */
+  /* hex or rgb() in, three numbers out */
+  function rgbOf(c){
+    if (c[0] !== '#') return c.match(/\d+/g).slice(0, 3).map(Number);
+    const h = c.slice(1);
+    const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
   function dim(hex){
-    const h = hex.replace('#', '');
-    const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const [r, g, b] = rgbOf(hex);
     return `rgb(${r >> 1},${g >> 1},${b >> 1})`;
+  }
+  /* t of the way from a to b */
+  function mix(a, b, t){
+    const A = rgbOf(a), B = rgbOf(b);
+    return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
   }
   /* On the bill the paper IS the --fg colour, so a piece drawn there has to
      come out the other way round. */
@@ -312,8 +322,21 @@ const Make = (() => {
     const mixes = used.map(f => f.vol * f.depth).sort((a, b) => a - b);
     const span = (r, t) => Math.round(r[0] + t * (r[1] - r[0]));
 
-    const list = used.map(f => ({
+    /* How busy the take was just there — the same change-from-the-one-before
+       that `pick` chose these frames by, kept this time. It is ranked within
+       the piece (`pct`), like every other quantity here, so each piece uses
+       the whole 0..1 whatever the source was like, and it decides nothing but
+       how the bands are drawn: complexity never moves geometry. */
+    const dRu = (Math.max(...used.map(f => f.depth)) - Math.min(...used.map(f => f.depth))) || 1;
+    const vRu = (Math.max(...used.map(f => f.vol))   - Math.min(...used.map(f => f.vol)))   || 1;
+    const chg = used.map((f, i) => i === 0 ? 0
+      : Math.abs(f.depth - used[i-1].depth) / dRu + Math.abs(f.vol - used[i-1].vol) / vRu);
+    if (chg.length > 1) chg[0] = chg[1];            // nothing came before it
+    const chgSorted = chg.slice().sort((a, b) => a - b);
+
+    const list = used.map((f, i) => ({
       at: f.at ?? 0,
+      cx: pct(chgSorted, chg[i]),
       w: span(p.width, pct(vols, f.vol)),
       /* A box has a depth of its own as well as a width. Reading it from the
          pitch rather than the loudness keeps the two from moving together. */
@@ -500,6 +523,19 @@ const Make = (() => {
     g.closePath();
   }
 
+  /* the plan's share of the two colours: concentric rings from the rim in,
+     as many as the form's own complexity asks for (see `bandsOn`) */
+  function ringsOn(g, foot, sh, ink0){
+    const want = Math.round(BANDS[0] + clamp(sh.cx ?? 0.5, 0, 1) * (BANDS[1] - BANDS[0]));
+    const n = want * 2;
+    // widest first, each one painted over the last, so what is left is rings
+    for (let k = n - 1; k >= 1; k--) {
+      g.fillStyle = (k % 2) ? SECOND(ink0) : ink0;
+      footprint(g, foot, sh.w * k / n, sh.wy ? sh.wy * k / n : undefined);
+      g.fill();
+    }
+  }
+
   /* the piece fills about 40% of the panel at its nominal size, and stays
      there however it is turned */
   /* One scale, worked out once when the piece is made and then left alone —
@@ -541,7 +577,11 @@ const Make = (() => {
             g.save(); g.translate(sh.x, prod.wall ? 0 : sh.y);
             footprint(g, prod.foot, sh.w, sh.wy);
             g.fillStyle = inkFor(i);
-            g.fill(); g.stroke(); g.restore();
+            g.fill(); g.stroke();
+            /* Seen from above the bands are the rings the nozzle walks, so
+               the plan is banded from the outside in by the same count. */
+            ringsOn(g, prod.foot, sh, inkFor(i));
+            g.restore();
           });
     g.restore();
   }
@@ -620,8 +660,16 @@ const Make = (() => {
               const yr = -wx * sy + wy * cy;
               return [xr, -yr * sp - wz * kz];
             };
-            poly(g, hull(surface(prod.form, sh, prod).map(put)));
-            g.fill(); g.stroke();
+            const rings = [];
+            const skin = hull(surface(prod.form, sh, prod, rings).map(put));
+            poly(g, skin);
+            g.fill();
+            /* clipped to the silhouette, so a band that bulges past it on the
+               way round cannot leak over the form beside it */
+            g.save(); g.clip();
+            bandsOn(g, rings, sh.cx, inkFor(i), put, sp >= 0);
+            g.restore();
+            poly(g, skin); g.stroke();
 
             // the flat face, when it is turned towards you
             if (prod.form === 'shade' ? sp < 0 : sp > 0) {
@@ -640,18 +688,28 @@ const Make = (() => {
      silhouette is only ever right at one tilt, which is why the Side Table and
      the Tray went flat when you looked up at them. */
 
-  const RINGS = 11, SEG = 16;
+  /* Enough rings that the bands can be set at even heights and still land
+     close to the one they want (see `bandsOn`); the outline is the smoother
+     for it too. */
+  const RINGS = 18, SEG = 16;
 
-  function surface(form, sh, p){
+  /* `rings`, when passed, also collects each ring on its own — the bands
+     below are drawn from them, and taking them from here is what keeps the
+     bands on the same surface as the outline. */
+  function surface(form, sh, p, rings){
     const r = sh.w / 2, hv = sh.hv, pts = [];
     const ring = (z, R, half) => {
-      if (R < 1e-6) { pts.push([0, 0, z]); return; }
-      const n = half ? SEG : SEG;
-      for (let i = 0; i < n; i++) {
-        const a = half ? Math.PI * i / (n - 1) : Math.PI * 2 * i / n;
-        pts.push([R * Math.cos(a), half ? -R * Math.sin(a) : R * Math.sin(a), z]);
+      const from = pts.length;
+      if (R < 1e-6) pts.push([0, 0, z]);
+      else {
+        const n = half ? SEG : SEG;
+        for (let i = 0; i < n; i++) {
+          const a = half ? Math.PI * i / (n - 1) : Math.PI * 2 * i / n;
+          pts.push([R * Math.cos(a), half ? -R * Math.sin(a) : R * Math.sin(a), z]);
+        }
+        if (half) { pts.push([-R, 0, z]); pts.push([R, 0, z]); }   // the cut face
       }
-      if (half) { pts.push([-R, 0, z]); pts.push([R, 0, z]); }   // the cut face
+      if (rings) rings.push(pts.slice(from));
     };
 
     if (form === 'capsule') {                       // flat on top, round below
@@ -706,6 +764,71 @@ const Make = (() => {
       h.pop(); return h;
     };
     return q.length < 3 ? q : half(q).concat(half(q.slice().reverse()));
+  }
+
+/* ── the two colours ────────────────────────────────────────────────────────
+   The printed piece comes off the machine in two filaments, laid in bands up
+   the wall, and the busier the sound or the picture was just there the finer
+   those bands are — 40 characters of the second colour at 0 % complexity, two
+   at 100 %, in the prototype's own G-code view (코딩 2). The same rule is
+   drawn here: a calm form wears a few broad bands, a busy one is striped
+   close. It is paint, not geometry — nothing about the form moves.
+
+   The bands are built from the surface's own rings rather than from lines
+   ruled across the screen, so they ride the silhouette: they bow with a
+   column and close up towards a cone's point the way the real layers do. */
+
+  const BANDS = [3, 15];              // how many at 0 % complexity, and at 100 %
+  /* The machine's second filament is a different colour, not the room behind
+     it — painted in the page colour the bands read as holes punched through
+     the form. It is mixed most of the way towards the page instead, which
+     keeps one object in two tones whichever pair of palette colours is up. */
+  const SECOND = (inkC) => mix(inkC, edge(), 0.58);
+
+  /* The half of a ring that is turned towards you, read off as a left-to-right
+     arc. A band has to be closed with these and not with the whole ring: the
+     hull of two whole rings reaches a ring's own half-height above and below
+     the slab, which is further than the step between bands, so every band
+     swallowed its neighbours and the form came out in three solid blocks. */
+  function nearArc(ring, put, down){
+    const pts = ring.map(put);
+    if (pts.length < 3) return pts;
+    const mid = put([0, 0, ring[0][2]])[1];
+    const half = pts.filter(p => down ? p[1] >= mid : p[1] <= mid);
+    return (half.length > 1 ? half : pts).sort((a, b) => a[0] - b[0]);
+  }
+
+  /* `rings` are the surface's own rings, still in the form's coordinates so
+     their heights can be read; `put` projects a point to the screen. */
+  function bandsOn(g, rings, cx, inkC, put, down){
+    if (rings.length < 3) return;
+    const zOf = i => rings[i][0][2];
+    const z0 = zOf(0), z1 = zOf(rings.length - 1);
+    if (Math.abs(z1 - z0) < 1e-6) return;
+
+    /* The boundaries are set at even heights and then snapped to the nearest
+       ring — stepping ring by ring instead gives bands of uneven thickness,
+       since a capsule's rings crowd together round its foot. */
+    const want = Math.round(BANDS[0] + clamp(cx ?? 0.5, 0, 1) * (BANDS[1] - BANDS[0]));
+    const edges = [];
+    for (let k = 0; k <= want; k++) {
+      const z = z0 + (z1 - z0) * k / want;
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < rings.length; i++) {
+        const d = Math.abs(zOf(i) - z);
+        if (d < bd) { bd = d; best = i; }
+      }
+      if (edges[edges.length - 1] !== best) edges.push(best);
+    }
+
+    g.fillStyle = SECOND(inkC);
+    // every other band, so the first colour is what is left showing between
+    for (let k = 0; k + 1 < edges.length; k += 2) {
+      const lo = nearArc(rings[edges[k]], put, down);
+      const hi = nearArc(rings[edges[k + 1]], put, down);
+      const band = lo.concat(hi.slice().reverse());
+      if (band.length > 2) { poly(g, band); g.fill(); }
+    }
   }
 
   const poly = (g, pts) => {
