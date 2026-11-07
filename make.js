@@ -90,6 +90,11 @@ const Make = (() => {
   let playing = false, playFrom = 0, frame = null;
   let take = null, takeUrl = null;      // the recording itself, for Play
   let stream = null, recorder = null, chunks = [];
+  /* The phone build turns the live camera and mic into whole screens of
+     their own, so it asks to be told when one starts and stops. The desktop
+     never registers anything here and nothing changes for it. */
+  let liveHook = null;
+  const told = (k, st) => { if (liveHook) liveHook(k, st); };
 
   const STEP = 620;                     // ms each form is held while playing
 
@@ -947,6 +952,7 @@ const Make = (() => {
           stream = await navigator.mediaDevices.getUserMedia({ video: true });
           cam.srcObject = stream; cam.hidden = false; await cam.play();
           liveLbl.textContent = 'Take It';
+          told('images', stream);
           return;
         }
         const c = Object.assign(document.createElement('canvas'),
@@ -967,6 +973,7 @@ const Make = (() => {
           recorder.start();
           liveLbl.textContent = 'Stop';
           liveBox.classList.add('is-armed');
+          told('sounds', stream);
           return;
         }
         recorder.stop();
@@ -981,6 +988,7 @@ const Make = (() => {
   function stopLive(){
     if (stream) stream.getTracks().forEach(t => t.stop());
     stream = null; recorder = null;
+    told(null, null);
     cam.hidden = true; cam.srcObject = null;
     liveBox.classList.remove('is-armed');
     liveLbl.textContent = label('Live');
@@ -1126,5 +1134,6 @@ const Make = (() => {
     scaleFixed = keep.scale;
   }
 
-  return { open, close, redraw, snapshot, paint, has: id => !!PRODUCTS[id] };
+  return { open, close, redraw, snapshot, paint, onLive: fn => { liveHook = fn; },
+           has: id => !!PRODUCTS[id] };
 })();

@@ -18,12 +18,22 @@ const Checkout = (() => {
   const slip   = document.getElementById('slipItems');
   const bills  = [...page.querySelectorAll('[data-bill]')];
 
-  /* Where a piece may be put down, in artboard px, measured from the floor's
-     own top-left — the left of the screen only, since the bill owns the
-     right. */
-  const FLOOR = { w: 1185, h: 840 };
-  const CARD  = { w: 360, h: 420, art: 300 };   // one entry, and its canvas
-  const MAXX  = FLOOR.w - CARD.w, MAXY = FLOOR.h - CARD.h;
+  /* Where a piece may be put down, measured from the floor's own top-left.
+     Both builds lay the floor out in their own stylesheet — one beside the
+     bill, one above it — so the box and the entry are measured rather than
+     written down here. The stage is what carries the scale, so these come
+     back in artboard px either way. */
+  let FLOOR = { w: 1185, h: 840 };
+  let CARD  = { w: 360, h: 420 };
+  let MAXX  = FLOOR.w - CARD.w, MAXY = FLOOR.h - CARD.h;
+
+  function measure(){
+    const el = floor.firstElementChild;
+    if (floor.clientWidth) FLOOR = { w: floor.clientWidth, h: floor.clientHeight };
+    if (el && el.offsetWidth) CARD = { w: el.offsetWidth, h: el.offsetHeight };
+    MAXX = Math.max(0, FLOOR.w - CARD.w);
+    MAXY = Math.max(0, FLOOR.h - CARD.h);
+  }
 
   const K = () => +getComputedStyle(document.documentElement).getPropertyValue('--k') || 1;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -34,13 +44,13 @@ const Checkout = (() => {
      three to a row, the second row as low as the floor allows so a name never
      lands on the piece beneath it. After that, wherever they are left is where
      they stay. */
-  const COLS = 3, STEP_X = 390, STEP_Y = MAXY;
-
   function place(i){
-    const col = i % COLS, row = Math.floor(i / COLS);
+    const cols = Math.max(1, Math.floor(FLOOR.w / CARD.w));
+    const stepX = cols > 1 ? MAXX / (cols - 1) : 0;
+    const col = i % cols, row = Math.floor(i / cols);
     return {
-      x: clamp(col * STEP_X, 0, MAXX),
-      y: clamp(row * STEP_Y, 0, MAXY)
+      x: clamp(col * stepX, 0, MAXX),
+      y: clamp(row * MAXY, 0, MAXY)
     };
   }
 
@@ -57,9 +67,11 @@ const Checkout = (() => {
         <div class="piece__price">${Cart.money(Cart.priceOf(it))}</div>
       </div>`).join('');
 
+    measure();
     [...floor.children].forEach((el, i) => {
       const it = items[i];
       if (!it.at) it.at = place(i);
+      it.at = { x: clamp(it.at.x, 0, MAXX), y: clamp(it.at.y, 0, MAXY) };
       el.style.left = `${it.at.x}px`;
       el.style.top  = `${it.at.y}px`;
       Make.paint(el.querySelector('.piece__cv'), it, false);

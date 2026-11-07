@@ -61,35 +61,51 @@ a{ color:inherit; text-decoration:none; }
   touch-action:manipulation;
 }
 
-/* ── header ─────────────────────────────────────────────────────────────── */
+/* ── header and the bottom bar ───────────────────────────────────────────
+   The wordmark sits on its own, centred at the top; everything you press is
+   in a row along the bottom where a thumb reaches (Reference/MobileSelect).
+   Numbers are off that sheet: logo 201 wide at y52, bar 36 tall ending 34
+   above the bottom edge. */
 
 .logo{
-  position:absolute; left:16px; top:20px; z-index:11;
-  width:150px; height:22px;                 /* 369 x 54, to the same ratio */
+  position:absolute; left:50%; top:52px; z-index:11;
+  width:201px; height:29px;                 /* 369 x 54, to the same ratio */
+  margin-left:-100px;
   display:block;
   color:var(--fg);
   transition: color .35s ease;
 }
 .logo svg{ display:block; width:100%; height:100%; }
 
-/* Two right-aligned lines: 390px will not hold the desktop's single row. */
 .nav{
-  position:absolute; right:16px; top:50px; z-index:11;
-  display:flex; flex-direction:column; align-items:flex-end;
+  position:absolute; left:0; right:0; bottom:34px; z-index:11;
+  height:36px;
+  display:flex; align-items:center; justify-content:center; gap:13px;
 }
-.nav__pre{ font-size:11px; line-height:1; font-weight:500; }
-.nav__tabs{ display:flex; align-items:baseline; gap:18px; }
 .nav__tab{
-  /* 28px of type inside a 48px tall target — the type sets the composition,
-     the padding makes it tappable. */
-  font-size:28px; line-height:1; font-weight:900;
-  padding:10px 2px; margin:0 -2px;
+  font-size:24px; line-height:1; font-weight:900;
+  padding:6px 2px; margin:0 -2px;
   transition: color .2s ease;
 }
 .nav__tab.is-on{ color:var(--on); }
 /* while the box is sitting behind an item, that item reads as a cut-out */
 .nav__tab.is-boxed, .logo.is-boxed{ color:var(--bg); }
 .nav__tab.is-boxed.is-on{ color:var(--bg); }
+
+/* the two glyphs at the end of the bar. The height goes on the svg, not the
+   button, or the padding eats into it. */
+.nav__icon{
+  position:relative; padding:6px 0;
+  line-height:0; color:var(--fg);
+  transition: color .2s ease;
+}
+.nav__icon svg{ display:block; width:auto; }
+.nav__icon--profile{ margin-left:10px; }
+.nav__icon--profile svg{ height:25px; }
+.nav__icon--cart{ margin-left:7px; }
+.nav__icon--cart svg{ height:26px; }
+.nav__icon.is-on{ color:var(--on); }
+.nav__icon.is-boxed, .nav__icon.is-boxed.is-on{ color:var(--bg); }
 
 /* ══ option bar box ══════════════════════════════════════════════════════════
    With no pointer to follow there is nothing to chase: the box appears where
@@ -170,7 +186,7 @@ a{ color:inherit; text-decoration:none; }
    at the edges. Swipe or tap the arrows to step; see app.js.             */
 
 .window{
-  position:absolute; left:0; right:0; top:212px; bottom:92px;
+  position:absolute; left:0; right:0; top:180px; bottom:150px;
   overflow:hidden;
   touch-action:none;                          /* the swipe is ours to read */
 }
@@ -244,7 +260,7 @@ a{ color:inherit; text-decoration:none; }
    dots between them — with one card visible there is otherwise nothing to
    say where in the five you are. */
 .pager{
-  position:absolute; left:0; right:0; bottom:28px; height:44px;
+  position:absolute; left:0; right:0; bottom:86px; height:44px;
   display:flex; align-items:center; justify-content:center; gap:22px;
 }
 .arrow{
@@ -278,7 +294,7 @@ a{ color:inherit; text-decoration:none; }
    anchored top and bottom and spreads them, so a short handset packs them
    closer instead of running the last ones off the screen. */
 .colors__list{
-  position:absolute; right:12px; top:108px; bottom:76px; width:46px;
+  position:absolute; right:12px; top:104px; bottom:150px; width:46px;
   display:flex; flex-direction:column; align-items:center;
   justify-content:space-between;
 }
@@ -305,7 +321,7 @@ a{ color:inherit; text-decoration:none; }
 .swatch.is-picked .swatch__n{ opacity:1; }
 
 .colors__close{
-  position:absolute; right:12px; bottom:20px;
+  position:absolute; right:12px; bottom:92px;
   width:46px; height:46px;
   display:grid; place-items:center;
   opacity:0; transform:translateY(-22px);
@@ -350,36 +366,96 @@ a{ color:inherit; text-decoration:none; }
    columns. Both stack here, and both steps are anchored top and bottom so
    they fill whatever height the handset has.                                */
 
-.make__title{
-  position:absolute; left:16px; right:16px; top:124px;
-  text-align:center;
-  font-size:38px; line-height:.95; font-weight:900;
-}
+/* MobileSelect leaves the step untitled — the two squares are the whole of
+   it — so the heading only shows up on the result. */
+.make__title{ display:none; }
 
+/* Two squares, one over the other, centred between the wordmark and the bar:
+   246 each with 35 between them, shrinking together on a short handset. */
 .make__io{
-  position:absolute; left:16px; right:16px; top:200px; bottom:36px;
-  display:flex; flex-direction:column; align-items:stretch;
-  justify-content:space-between;
+  position:absolute; left:16px; right:16px; top:110px; bottom:70px;
+  --sq: min(246px, (var(--vh) * 1px - 215px) / 2);
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:35px;
 }
-.make__or{ font-size:26px; line-height:1; font-weight:900; text-align:center; padding:10px 0; }
 
 .drop{
   position:relative;
-  flex:1 1 0; min-height:0;
+  width:var(--sq); height:var(--sq); flex:0 0 auto;
   border:3px solid var(--fg);
   display:grid; place-items:center;
   overflow:hidden;
   transition: background-color .18s ease, color .18s ease;
 }
+/* the first box is the filled one, as on the sheet */
+.drop[data-kind="file"]{ background:var(--fg); color:var(--bg); }
 /* no hover on a touch screen — the fill is the press itself */
 .drop:active, .drop.is-armed{ background:var(--fg); color:var(--bg); }
-.drop__label{ font-size:26px; line-height:1; font-weight:900; position:relative; z-index:1; }
+.drop__label{ font-size:24px; line-height:1; font-weight:900; position:relative; z-index:1; }
 .drop__cam{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; transform:scaleX(-1);        /* mirrored, like a mirror */
-  filter:grayscale(1) contrast(1.1);
 }
 .drop.is-busy{ pointer-events:none; }
+
+/* ══ live ════════════════════════════════════════════════════════════════════
+   Reference/Mobile_LiveImage · Mobile_LiveSound. Once the camera or the mic
+   is running the step stops being two boxes: the viewfinder takes the screen
+   with the thirds grid over it, or the mic draws what it is hearing, and one
+   round button underneath takes it. app.js puts is-live-img / is-live-snd on
+   the root when make.js says a stream has started. */
+
+.live__grid, .wave, .shoot{ display:none; }
+
+:root.is-live-img .make__io{
+  left:26px; right:26px; top:118px; bottom:228px; display:block;
+}
+:root.is-live-img .drop[data-kind="file"]{ display:none; }
+:root.is-live-img .drop[data-kind="live"]{
+  width:100%; height:100%; border:0; background:none;
+}
+:root.is-live-img .drop[data-kind="live"] .drop__label{ display:none; }
+
+/* thirds, so there is something to line the shot up against */
+:root.is-live-img .live__grid{
+  display:block; position:absolute; inset:0; z-index:1;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - 1px), rgba(255,255,255,.55) calc(33.33% - 1px),
+                    rgba(255,255,255,.55) calc(33.33% + 1px), transparent calc(33.33% + 1px)),
+    linear-gradient(to right, transparent calc(66.66% - 1px), rgba(255,255,255,.55) calc(66.66% - 1px),
+                    rgba(255,255,255,.55) calc(66.66% + 1px), transparent calc(66.66% + 1px)),
+    linear-gradient(to bottom, transparent calc(33.33% - 1px), rgba(255,255,255,.55) calc(33.33% - 1px),
+                    rgba(255,255,255,.55) calc(33.33% + 1px), transparent calc(33.33% + 1px)),
+    linear-gradient(to bottom, transparent calc(66.66% - 1px), rgba(255,255,255,.55) calc(66.66% - 1px),
+                    rgba(255,255,255,.55) calc(66.66% + 1px), transparent calc(66.66% + 1px));
+}
+
+/* the mic has nothing to show, so the boxes go and the bars take their place */
+:root.is-live-snd .make__io{ display:none; }
+/* sized outright, not stretched between left and right: a <canvas> is a
+   replaced element, so with width:auto it takes its width ATTRIBUTE as its
+   intrinsic size and drops `right` as over-constrained — and the attribute is
+   written from the box it measures, so the two would chase each other. */
+:root.is-live-snd .wave{
+  display:block;
+  position:absolute; left:39px; width:312px; bottom:373px; height:164px;
+}
+
+/* ring and disc, 90 across, as on both sheets */
+:root.is-live-img .shoot, :root.is-live-snd .shoot{
+  display:grid; place-items:center;
+  position:absolute; left:50%; margin-left:-45px;
+  width:90px; height:90px; border-radius:50%;
+  border:3.5px solid var(--fg);
+}
+:root.is-live-img .shoot{ bottom:107px; }
+:root.is-live-snd .shoot{ bottom:202px; }
+.shoot span{
+  display:block; width:70px; height:70px; border-radius:50%;
+  background:var(--fg);
+  transition: transform .14s ease, background-color .35s ease;
+}
+.shoot:active span{ transform:scale(.88); }
 
 .page--make.is-result .make__title{ display:none; }
 .make__out{ position:absolute; inset:0; display:none; }
@@ -397,23 +473,23 @@ a{ color:inherit; text-decoration:none; }
    size, which is why it never ran into this. --vh is the stage height, so
    the height below is still the whole of what is left. */
 .make__src{
-  position:absolute; left:16px; top:124px;
-  width:calc(100% - 32px); height:212px;
+  position:absolute; left:16px; top:110px;
+  width:calc(100% - 32px); height:200px;
 }
-/* and what came out, below it, taking everything that is left: 348 above it,
-   100 of buttons below — 150 when a recording puts a scrub bar there too,
-   which app.js marks with has-scrub. */
+/* and what came out, below it, taking everything that is left: 322 above it,
+   150 of buttons and bar below — 200 when a recording puts a scrub bar there
+   too, which app.js marks with has-scrub. */
 .make__canvas{
-  position:absolute; left:16px; top:348px;
-  width:calc(100% - 32px); height:calc(var(--vh) * 1px - 448px);
+  position:absolute; left:16px; top:322px;
+  width:calc(100% - 32px); height:calc(var(--vh) * 1px - 472px);
   touch-action:none;                    /* drag to turn, not to scroll */
 }
-:root.has-scrub .make__canvas{ height:calc(var(--vh) * 1px - 498px); }
+:root.has-scrub .make__canvas{ height:calc(var(--vh) * 1px - 522px); }
 
 /* Scrubbing through a recording. A long take is hard to walk through a form
    at a time, so the bar lets you jump straight to a moment. */
 .scrub{
-  position:absolute; left:16px; right:16px; bottom:102px; height:34px;
+  position:absolute; left:16px; right:16px; bottom:152px; height:34px;
   touch-action:none;
 }
 .scrub[hidden]{ display:none; }
@@ -428,7 +504,7 @@ a{ color:inherit; text-decoration:none; }
 }
 
 .make__btns{
-  position:absolute; left:16px; right:16px; bottom:26px;
+  position:absolute; left:16px; right:16px; bottom:84px;
   display:flex; align-items:center; justify-content:space-between;
 }
 .rbtn{
@@ -448,6 +524,337 @@ a{ color:inherit; text-decoration:none; }
 .i-pause{ display:none; }
 .rbtn.is-on .i-play{ display:none; }
 .rbtn.is-on .i-pause{ display:block; }
+
+/* ══ profile ════════════════════════════════════════════════════════════════
+   The desktop sheet at phone width: the circle centred under the wordmark,
+   the three lines beneath it, the two buttons under those. profile.js drives
+   this page and the desktop one from the same hooks. */
+
+.avatar{
+  position:absolute; left:50%; top:104px; margin-left:-85px;
+  width:170px; height:170px; border-radius:50%;
+  background:var(--fg);
+  display:grid; place-items:center;
+  overflow:hidden;
+  color:var(--bg);
+  transition: background-color .35s ease, color .35s ease;
+}
+.avatar__glyph{ display:block; width:96px; }
+.avatar__glyph svg{ display:block; width:100%; height:auto; }
+/* the lens is a hole in the camera body, so it is stroked in the colour of
+   the circle behind it rather than in the body's own ink */
+.avatar__glyph circle{ stroke:var(--fg); transition:stroke .35s ease; }
+.avatar__img,
+.avatar__cam{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover;
+}
+.avatar__cam{ transform:scaleX(-1); }        /* mirrored, like a mirror */
+.avatar__hint{
+  position:absolute; left:0; right:0; bottom:18px;
+  text-align:center;
+  font-size:22px; line-height:1; font-weight:900;
+  color:var(--fg);
+  text-shadow:0 2px 10px rgba(0,0,0,.45);
+}
+.avatar.is-set{ background:var(--fg); }
+
+/* which way — the camera now, or something already on the machine */
+.pick{
+  position:absolute; left:85px; top:206px; z-index:12;
+  width:220px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.pick[hidden]{ display:none; }
+.pick__b{
+  height:44px; border-radius:22px;
+  background:var(--fg); color:var(--bg);
+  font-size:20px; line-height:1; font-weight:900;
+  transition: background-color .35s ease, color .35s ease, opacity .18s ease;
+}
+
+.pform{ position:absolute; left:16px; right:16px; top:296px; }
+
+/* Empty is an outline with the label sitting in it; filled is solid, and both
+   the label and what was typed read as cut-outs (01_Profile_02). */
+.pfield{
+  position:relative;
+  display:grid; grid-template-columns:92px 1fr; align-items:center;
+  height:54px; margin-bottom:12px;
+  padding:0 22px;
+  border:2px solid var(--fg); border-radius:27px;
+  transition: background-color .22s ease, border-color .35s ease;
+}
+.pfield--tall{ height:100px; align-items:start; padding-top:18px; }
+.pfield.is-on{ background:var(--fg); }
+
+.pfield__k{
+  font-size:20px; line-height:1; font-weight:900;
+  color:var(--fg);
+  transition: color .22s ease;
+}
+.pfield.is-on .pfield__k{ color:var(--bg); }
+
+.pfield__v{
+  font:inherit; font-size:24px; line-height:1.05; font-weight:900;
+  color:var(--bg);
+  background:none; border:0; outline:none;
+  width:100%; min-width:0;
+  opacity:0;
+  transition: opacity .22s ease, color .35s ease;
+}
+.pfield.is-on .pfield__v,
+.page--profile.is-editing .pfield__v{ opacity:1; }
+/* while you are typing into a line that is still empty, the ink has to read
+   against the page rather than against a fill that is not there yet */
+.page--profile.is-editing .pfield:not(.is-on) .pfield__v{ color:var(--fg); }
+.pfield__v:disabled{ -webkit-text-fill-color:currentColor; }
+textarea.pfield__v{ resize:none; height:62px; }
+
+.pbtns{
+  position:absolute; left:0; right:0; top:548px;
+  display:flex; justify-content:center; gap:12px;
+}
+.pbtn{
+  width:104px; height:44px; border-radius:22px;
+  border:2px solid var(--fg); color:var(--fg);
+  font-size:26px; line-height:1; font-weight:900;
+  transition: background-color .18s ease, color .18s ease;
+}
+.pbtn--fill,
+.pbtn.is-on{ background:var(--fg); color:var(--bg); }
+.pbtn--fill.is-saved{ opacity:.6; }
+
+/* ══ cart ═══════════════════════════════════════════════════════════════════
+   The same four steps as the desktop and the same checkout.js, but the bill
+   lies under the floor rather than beside it — there is no "beside" at this
+   width. */
+
+.page--cart [data-cstep]{ display:none; }
+.page--cart[data-step="1"] [data-cstep="1"],
+.page--cart[data-step="2"] [data-cstep="23"],
+.page--cart[data-step="3"] [data-cstep="23"],
+.page--cart[data-step="4"] [data-cstep="4"]{ display:block; }
+.page--cart[data-step="2"] [data-cform="3"],
+.page--cart[data-step="3"] [data-cform="2"]{ display:none; }
+
+.cart__title, .floor, .floor__empty{ display:none; }
+.page--cart[data-step="1"] .cart__title,
+.page--cart[data-step="1"] .floor{ display:block; }
+.page--cart[data-step="1"] .floor__empty:not([hidden]){ display:block; }
+
+.cart__title{
+  position:absolute; left:16px; top:108px;
+  font-size:40px; line-height:1; font-weight:900;
+  white-space:nowrap;
+}
+
+/* ── the floor ─────────────────────────────────────────────────────────────
+   Everything made so far, which can be pushed anywhere inside this box and
+   stays where it is left. checkout.js measures the box and the entry rather
+   than carrying numbers of its own, so this is the only place they are set. */
+.floor{
+  position:absolute; left:16px; right:16px; top:156px; bottom:320px;
+}
+.floor__empty{
+  position:absolute; left:18px; top:186px;
+  font-size:22px; line-height:1; font-weight:800;
+  opacity:.5;
+}
+
+.piece{
+  position:absolute; width:158px;
+  touch-action:none;
+}
+.piece.is-held{ z-index:3; }
+.piece__cv{ display:block; width:158px; height:132px; }
+.piece__row{
+  display:flex; align-items:center; gap:8px;
+  height:28px;
+}
+.piece__name{
+  font-size:24px; line-height:1; font-weight:900;
+  white-space:nowrap;
+}
+.piece__x{
+  margin-left:auto;
+  width:23px; height:23px; flex:0 0 auto;
+  color:var(--fg);
+}
+.piece__x svg{ display:block; width:100%; height:100%; }
+.piece__price{
+  font-size:21px; line-height:1; font-weight:900;
+  margin-top:2px;
+}
+
+/* ── the bill paper ────────────────────────────────────────────────────────
+   One corner is turned down: the sheet is cut away along the diagonal and the
+   crease is drawn as a line down to where the cut meets the edge. */
+.paper{ position:absolute; --fold:44px; --pad:20px; }
+
+.paper__sheet{
+  position:absolute; inset:0;
+  background:var(--fg);
+  clip-path:polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+  transition: background-color .35s ease;
+}
+.paper__fold{
+  position:absolute; top:0; right:var(--fold);
+  width:2px; height:var(--fold);
+  background:var(--bg);
+  transition: background-color .35s ease;
+}
+.paper__in{
+  position:absolute; inset:0;
+  color:var(--bg);
+  transition: color .35s ease;
+}
+
+.paper--side{ left:16px; right:16px; bottom:86px; height:220px; }
+.paper--wide{ left:16px; right:16px; top:100px;  bottom:86px;  --fold:40px; --pad:18px; }
+.paper--slip{ left:44px; right:44px; top:110px;  bottom:120px; --fold:34px; --pad:22px; }
+
+.paper__t{
+  position:absolute; left:var(--pad); top:12px;
+  font-size:24px; line-height:1; font-weight:900;
+}
+.paper__t--slip{ top:20px; font-size:26px; }
+
+.rule{
+  position:absolute; left:var(--pad); top:46px; height:0;
+  width:calc(100% - var(--pad) - var(--fold) - 14px);
+  border-top:2px dotted var(--bg);
+}
+.rule--wide{ width:calc(100% - var(--pad) - 18px); }
+.rule--low{
+  position:static; width:100%;
+  margin:calc(16px * var(--bs)) 0 0; border-top:2px dotted var(--bg);
+}
+
+/* A long bill is written smaller rather than run past the buttons: --avail is
+   how far down it may go, and checkout.js sets --bs to fit. */
+.bill{
+  position:absolute; left:var(--pad); top:60px;
+  width:calc(100% - var(--pad) * 2);
+  --bs:1; --avail:84px;
+}
+.bill--wide{ width:calc(100% - var(--pad) * 2); --avail:150px; }
+
+.bill__row{
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; margin-bottom:calc(11px * var(--bs));
+}
+.bill__k{ font-size:calc(20px * var(--bs)); line-height:1; font-weight:900; white-space:nowrap; }
+.bill__v{ font-size:calc(16px * var(--bs)); line-height:1; font-weight:900; white-space:nowrap; }
+.bill__row--total{ margin-bottom:0; }
+.bill__row--total .bill__k,
+.bill__row--total .bill__v{ font-size:calc(24px * var(--bs)); }
+
+.bill__tag{
+  display:flex; align-items:center; justify-content:flex-end; gap:7px;
+  margin-top:calc(14px * var(--bs));
+  font-size:calc(17px * var(--bs)); line-height:1; font-weight:900;
+}
+.bill__tag[hidden]{ display:none; }
+.bill__tagi{ display:block; width:calc(14px * var(--bs)); }
+.bill__tagi svg{ display:block; width:100%; height:auto; }
+
+/* Buy, and the two round ones beside it */
+.paper__btns{
+  position:absolute; right:var(--pad); bottom:16px;
+  display:flex; align-items:center; gap:9px;
+}
+.pill{
+  height:40px; padding:0 20px; min-width:92px;
+  border-radius:20px;
+  background:var(--bg); color:var(--fg);
+  font-size:24px; line-height:1; font-weight:900;
+  transition: background-color .35s ease, color .35s ease, opacity .18s ease;
+}
+.pill--wide{ width:100%; padding:0; }
+.rnd{
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid var(--bg); color:var(--bg);
+  display:grid; place-items:center;
+  transition: border-color .35s ease, color .35s ease, background-color .18s ease;
+}
+.rnd svg{ display:block; height:20px; width:auto; }
+
+/* ── the forms on the opened-out sheet ───────────────────────────────────
+   Below the bill rather than beside it. */
+
+.cform{
+  position:absolute; left:var(--pad); right:var(--pad); bottom:18px;
+  display:flex; flex-direction:column; gap:9px;
+}
+.crow{ display:flex; gap:9px; }
+.crow--3{ gap:7px; }
+.crow > *{ flex:1 1 0; min-width:0; }
+
+.cin, .csel{
+  height:38px; border-radius:19px;
+  border:2px solid var(--bg);
+  display:flex; align-items:center; justify-content:center;
+  transition: border-color .35s ease;
+}
+.cin{
+  font:inherit; font-size:15px; font-weight:900;
+  color:var(--bg); background:none; outline:none;
+  text-align:center;
+  padding:0 8px;
+}
+.cin::placeholder{ color:var(--bg); opacity:1; }
+
+/* a select has to keep its own arrow — the chevron is drawn on the wrapper */
+.csel{ position:relative; }
+.csel select{
+  appearance:none; -webkit-appearance:none;
+  font:inherit; font-size:15px; font-weight:900;
+  color:var(--bg); background:none; border:0; outline:none;
+  width:100%; height:100%;
+  text-align:center; text-align-last:center;
+  padding:0 16px 0 6px;
+}
+.csel select option{ color:#111; }
+.csel::after{
+  content:''; position:absolute; right:10px; top:calc(50% - 4px);
+  width:7px; height:7px;
+  border-right:2px solid var(--bg); border-bottom:2px solid var(--bg);
+  transform:rotate(45deg);
+  pointer-events:none;
+}
+
+.ccheck{
+  display:flex; align-items:center; gap:8px;
+  margin-top:2px;
+  font-size:19px; line-height:1; font-weight:900;
+}
+.ccheck input{ position:absolute; opacity:0; width:0; height:0; }
+.ccheck__b{
+  width:21px; height:21px; flex:0 0 auto;
+  border:2px solid var(--bg);
+  transition: background-color .18s ease, border-color .35s ease;
+}
+.ccheck input:checked + .ccheck__b{ background:var(--bg); }
+
+.cform .pill{ margin-top:2px; }
+
+/* ── the receipt ───────────────────────────────────────────────────────────
+   Everything bought, drawn on the paper itself, which then takes it away. */
+.slip__items{
+  position:absolute; left:var(--pad); top:70px; right:var(--pad); bottom:24px;
+  display:flex; flex-direction:column; justify-content:space-evenly;
+  overflow:hidden;
+}
+.slip__cv{ display:block; width:100%; height:150px; flex:0 0 auto; }
+
+.paper--slip{
+  transition: transform .95s cubic-bezier(.45,0,.7,.2), opacity .95s ease;
+}
+.page--cart.is-away .paper--slip{
+  transform:translateY(-170%) rotate(-4deg);
+  opacity:0;
+}
 
 /* ── sideways ───────────────────────────────────────────────────────────── */
 

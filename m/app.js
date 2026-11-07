@@ -17,10 +17,13 @@ const swatchesEl = document.getElementById('swatches');
 const titleEl = document.querySelector('[data-title]');
 const pages   = document.querySelectorAll('.page');
 const tabs    = document.querySelectorAll('.nav__tab');
+const navIcons = document.querySelectorAll('.nav__icon');
 
 const TITLES = { images: 'Turn your image into', sounds: 'Turn your sound into' };
+/* the pages that are a page in their own right rather than a picker tab */
+const OWN = ['home', 'profile', 'cart'];
 
-let page = 'home';          // 'home' | 'images' | 'sounds'
+let page = 'home';          // 'home' | 'images' | 'sounds' | 'profile' | 'cart'
 let colorsOpen = false;
 // 1 = foreground, 2 = background — a different pair every time you arrive
 const [startFg, startBg] = openingPair();
@@ -42,7 +45,7 @@ const MAXK = 1.35;
    close to 0.70 as the window's own height allows, so a tall handset gets the
    big card and a short one gets a smaller card rather than a cropped one.
    WIN_TOP / WIN_BOT are the window's insets in styles.css. */
-const CARD = 574, WIN_TOP = 212, WIN_BOT = 92, SMAX = 0.7;
+const CARD = 574, WIN_TOP = 180, WIN_BOT = 150, SMAX = 0.7;
 
 function fit(){
   const k = Math.min(innerWidth / 390, MAXK);
@@ -59,6 +62,7 @@ addEventListener('resize', () => { k = fit(); });
 /* ── items ──────────────────────────────────────────────────────────────── */
 
 document.querySelector('.logo').innerHTML = LOGO_SVG;
+navIcons.forEach(b => { b.innerHTML = ICONS[b.dataset.go]; });
 
 /* The silhouettes are sized off --s like the rest of the card, so they follow
    it when the window height changes. The viewBox is left at the traced size,
@@ -313,22 +317,26 @@ itemEls.forEach((el, i) => {
    picker tab we came from lit, and runs the palette the other way round. */
 function show(next, making){
   if (!making) Make.close();
+  Profile.close();
+  Checkout.close();
   page = next;
-  const shown = making ? 'make' : next === 'home' ? 'home' : 'picker';
+  const shown = making ? 'make' : OWN.includes(next) ? next : 'picker';
   pages.forEach(p => p.classList.toggle('is-on', p.dataset.page === shown));
   document.documentElement.classList.toggle('is-flip', !!making);
   // only a recording gets a scrub bar, and the canvas has to clear it
   document.documentElement.classList.toggle('has-scrub', !!making && page === 'sounds');
-  if (next !== 'home') titleEl.textContent = TITLES[next];
+  if (TITLES[next]) titleEl.textContent = TITLES[next];
   // the title sequence only runs while the main page is on screen
   next === 'home' ? Intro.start() : Intro.stop();
   paintTabs();
   if (making) Make.redraw();
+  if (next === 'cart') Checkout.open();
 }
 
 function paintTabs(){
   tabs.forEach(t => t.classList.toggle('is-on',
     t.dataset.tab === page || (t.dataset.tab === 'colors' && colorsOpen)));
+  navIcons.forEach(b => b.classList.toggle('is-on', b.dataset.go === page));
 }
 
 /* ── the option bar box ─────────────────────────────────────────────────────
@@ -338,14 +346,14 @@ function paintTabs(){
 
 const navbox = document.getElementById('navbox');
 const logoEl = document.querySelector('.logo');
-const boxTargets = [logoEl, ...tabs];
+const boxTargets = [logoEl, ...tabs, ...navIcons];
 let boxAt = null;
 
 function boxRect(el){
   const kk = +getComputedStyle(document.documentElement).getPropertyValue('--k');
   const s = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
   const fs = parseFloat(getComputedStyle(el).fontSize) || r.height / kk;
-  const padX = fs * 0.22, padY = fs * 0.10;
+  const padX = fs * 0.31, padY = fs * 0.25;
   // the tabs carry padding for the tap target; the box hugs the type instead
   const py = (parseFloat(getComputedStyle(el).paddingTop) || 0);
   const px2 = (parseFloat(getComputedStyle(el).paddingLeft) || 0);
@@ -388,6 +396,11 @@ logoEl.addEventListener('click', e => {
   show('home');
 });
 
+navIcons.forEach(b => b.addEventListener('click', e => {
+  e.stopPropagation();
+  show(b.dataset.go);
+}));
+
 /* ── colour panel ───────────────────────────────────────────────────────────
    Fourteen chips down the right edge. The column spreads them between its top
    and bottom (styles.css) rather than stepping a fixed pitch, so the last one
@@ -414,6 +427,7 @@ function applyColors(){
   r.setProperty('--c2', PALETTE[slots[2]]);
   paintSwatches();
   Make.redraw();        // canvas pixels do not follow CSS variables
+  Checkout.redraw();
 }
 
 swatchEls.forEach(el => el.addEventListener('click', e => {
@@ -456,19 +470,96 @@ document.addEventListener('click', () => {
   if (hot) closeItem(hot);
 });
 
-/* ── wording ────────────────────────────────────────────────────────────────
-   "Drop" belongs to a mouse. On a phone you pick a file, so the first box
-   says Pick. make.js owns that text and re-labels on every reset, so the
-   wording is corrected wherever it lands rather than at one point in the
-   flow — which also keeps make.js itself shared and unchanged. */
+/* ── live ───────────────────────────────────────────────────────────────────
+   Mobile_LiveImage / Mobile_LiveSound. The desktop keeps the camera inside
+   the little box it was armed from; at this width that box is the screen, so
+   make.js tells us when a stream starts and the root takes a class the
+   stylesheet can lay the whole page out from. The one round button underneath
+   is the second press on the live box — make.js already knows what that
+   means, so it is handed straight on. */
 
-const dropLbl = document.querySelector('[data-drop-label]');
-const relabel = () => {
-  const t = dropLbl.textContent;
-  if (t.startsWith('Drop ')) dropLbl.textContent = 'Pick ' + t.slice(5);
-};
-new MutationObserver(relabel).observe(dropLbl, { childList: true, characterData: true, subtree: true });
-relabel();
+const liveBox = document.querySelector('.drop[data-kind="live"]');
+const shootEl = document.querySelector('[data-shoot]');
+const waveEl  = document.querySelector('[data-wave]');
+
+shootEl.addEventListener('click', e => { e.stopPropagation(); liveBox.click(); });
+
+Make.onLive((what, stream) => {
+  const r = document.documentElement.classList;
+  r.toggle('is-live-img', what === 'images');
+  r.toggle('is-live-snd', what === 'sounds');
+  what === 'sounds' ? startWave(stream) : stopWave();
+});
+
+/* What the mic is hearing, a bar at a time. The bars fill in from the left as
+   the take runs and then scroll, so the row is a picture of how long you have
+   been going as much as of how loud. */
+
+const BARS = 18, BAR_MS = 110;
+let ac = null, analyser = null, buf = null, waveRaf = null;
+let levels = [], lastBar = 0;
+
+function startWave(stream){
+  stopWave();
+  try {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ac.createAnalyser();
+    analyser.fftSize = 1024;
+    buf = new Uint8Array(analyser.fftSize);
+    ac.createMediaStreamSource(stream).connect(analyser);
+  } catch (err) {
+    console.warn('[m] no meter for this take:', err.name);
+    return;
+  }
+  levels = []; lastBar = 0;
+  waveRaf = requestAnimationFrame(drawWave);
+}
+
+function stopWave(){
+  if (waveRaf) cancelAnimationFrame(waveRaf);
+  waveRaf = null;
+  if (ac) ac.close();
+  ac = analyser = buf = null;
+  levels = [];
+}
+
+/* root mean square of the window, pulled up so ordinary speech uses most of
+   the height rather than a sliver of it */
+function loudness(){
+  analyser.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
+  return Math.min(1, Math.sqrt(sum / buf.length) * 3.4);
+}
+
+function drawWave(now){
+  waveRaf = requestAnimationFrame(drawWave);
+  if (!analyser) return;
+
+  if (now - lastBar >= BAR_MS) {
+    lastBar = now;
+    levels.push(loudness());
+    if (levels.length > BARS) levels.shift();
+  }
+
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const box = waveEl.getBoundingClientRect();
+  if (!box.width) return;
+  const w = Math.round(box.width * dpr), h = Math.round(box.height * dpr);
+  if (waveEl.width !== w || waveEl.height !== h) { waveEl.width = w; waveEl.height = h; }
+
+  const g = waveEl.getContext('2d');
+  g.clearRect(0, 0, w, h);
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
+
+  // the row is laid out for the full count, so the bars stand still as they
+  // come in rather than spreading out again on every frame
+  const pitch = w / BARS, bw = pitch * 0.53;
+  levels.forEach((v, i) => {
+    const bh = Math.max(h * 0.06, h * (0.1 + 0.9 * v));
+    g.fillRect(i * pitch + (pitch - bw) / 2, (h - bh) / 2, bw, bh);
+  });
+}
 
 /* ── go ─────────────────────────────────────────────────────────────────── */
 
