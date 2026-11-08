@@ -113,11 +113,6 @@ const Make = (() => {
     const [r, g, b] = rgbOf(hex);
     return `rgb(${r >> 1},${g >> 1},${b >> 1})`;
   }
-  /* t of the way from a to b */
-  function mix(a, b, t){
-    const A = rgbOf(a), B = rgbOf(b);
-    return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
-  }
   /* On the bill the paper IS the --fg colour, so a piece drawn there has to
      come out the other way round. */
   let flipInk = false;
@@ -523,19 +518,6 @@ const Make = (() => {
     g.closePath();
   }
 
-  /* the plan's share of the two colours: concentric rings from the rim in,
-     as many as the form's own complexity asks for (see `bandsOn`) */
-  function ringsOn(g, foot, sh, ink0){
-    const want = Math.round(BANDS[0] + clamp(sh.cx ?? 0.5, 0, 1) * (BANDS[1] - BANDS[0]));
-    const n = want * 2;
-    // widest first, each one painted over the last, so what is left is rings
-    for (let k = n - 1; k >= 1; k--) {
-      g.fillStyle = (k % 2) ? SECOND(ink0) : ink0;
-      footprint(g, foot, sh.w * k / n, sh.wy ? sh.wy * k / n : undefined);
-      g.fill();
-    }
-  }
-
   /* the piece fills about 40% of the panel at its nominal size, and stays
      there however it is turned */
   /* One scale, worked out once when the piece is made and then left alone —
@@ -578,9 +560,6 @@ const Make = (() => {
             footprint(g, prod.foot, sh.w, sh.wy);
             g.fillStyle = inkFor(i);
             g.fill(); g.stroke();
-            /* Seen from above the bands are the rings the nozzle walks, so
-               the plan is banded from the outside in by the same count. */
-            ringsOn(g, prod.foot, sh, inkFor(i));
             g.restore();
           });
     g.restore();
@@ -651,7 +630,7 @@ const Make = (() => {
           .forEach(({ sh, i }) => {
             g.save();
             g.fillStyle = inkFor(i);
-            if (prod.form === 'box') { cuboid(g, sh, cy, sy, sp, kz); g.restore(); return; }
+            if (prod.form === 'box') { cuboid(g, sh, cy, sy, sp, kz, s); g.restore(); return; }
 
             // project the real surface, then outline whatever it covers
             const put = ([lx, ly, lz]) => {
@@ -660,14 +639,13 @@ const Make = (() => {
               const yr = -wx * sy + wy * cy;
               return [xr, -yr * sp - wz * kz];
             };
-            const rings = [];
-            const skin = hull(surface(prod.form, sh, prod, rings).map(put));
+            const skin = hull(surface(prod.form, sh, prod).map(put));
             poly(g, skin);
             g.fill();
-            /* clipped to the silhouette, so a band that bulges past it on the
-               way round cannot leak over the form beside it */
+            /* clipped to the silhouette, so a line that runs wide of it on
+               the way round cannot leak over the form beside it */
             g.save(); g.clip();
-            bandsOn(g, rings, sh.cx, inkFor(i), put, sp >= 0);
+            layersOn(g, prod.form, sh, prod, put, sp >= 0, s);
             g.restore();
             poly(g, skin); g.stroke();
 
@@ -688,18 +666,11 @@ const Make = (() => {
      silhouette is only ever right at one tilt, which is why the Side Table and
      the Tray went flat when you looked up at them. */
 
-  /* Enough rings that the bands can be set at even heights and still land
-     close to the one they want (see `bandsOn`); the outline is the smoother
-     for it too. */
   const RINGS = 18, SEG = 16;
 
-  /* `rings`, when passed, also collects each ring on its own — the bands
-     below are drawn from them, and taking them from here is what keeps the
-     bands on the same surface as the outline. */
-  function surface(form, sh, p, rings){
+  function surface(form, sh, p){
     const r = sh.w / 2, hv = sh.hv, pts = [];
     const ring = (z, R, half) => {
-      const from = pts.length;
       if (R < 1e-6) pts.push([0, 0, z]);
       else {
         const n = half ? SEG : SEG;
@@ -709,7 +680,6 @@ const Make = (() => {
         }
         if (half) { pts.push([-R, 0, z]); pts.push([R, 0, z]); }   // the cut face
       }
-      if (rings) rings.push(pts.slice(from));
     };
 
     if (form === 'capsule') {                       // flat on top, round below
@@ -766,69 +736,93 @@ const Make = (() => {
     return q.length < 3 ? q : half(q).concat(half(q.slice().reverse()));
   }
 
-/* ── the two colours ────────────────────────────────────────────────────────
-   The printed piece comes off the machine in two filaments, laid in bands up
-   the wall, and the busier the sound or the picture was just there the finer
-   those bands are — 40 characters of the second colour at 0 % complexity, two
-   at 100 %, in the prototype's own G-code view (코딩 2). The same rule is
-   drawn here: a calm form wears a few broad bands, a busy one is striped
-   close. It is paint, not geometry — nothing about the form moves.
+/* ── the printed layers ──────────────────────────────────────────────────────
+   A printed piece is built up in layers, and the machine's preview shows
+   them as lines stacked up the wall. The result wears the same lines: at
+   each layer height the ring the nozzle walks is worked out and the half of
+   it turned towards you is drawn. That is what makes a line bow down a
+   column and close up towards a cone's point — it is the real section at
+   that height, not a rule drawn across the screen.
 
-   The bands are built from the surface's own rings rather than from lines
-   ruled across the screen, so they ride the silhouette: they bow with a
-   column and close up towards a cone's point the way the real layers do. */
+   Two real numbers decide how many lines there are. The layer height comes
+   from the form's complexity — a calm stretch of the sound or the picture
+   prints coarse, a busy one prints fine — and the count is then simply the
+   form's own height divided by it, so a long column carries more lines than
+   a short one beside it at the same setting. It is paint, not geometry:
+   nothing about the form moves.
 
-  const BANDS = [3, 15];              // how many at 0 % complexity, and at 100 %
-  /* The machine's second filament is a different colour, not the room behind
-     it — painted in the page colour the bands read as holes punched through
-     the form. It is mixed most of the way towards the page instead, which
-     keeps one object in two tones whichever pair of palette colours is up. */
-  const SECOND = (inkC) => mix(inkC, edge(), 0.58);
+   Seen from straight above there is nothing to draw. A lid is one layer,
+   printed flat, which is why the plan is left plain. */
 
-  /* The half of a ring that is turned towards you, read off as a left-to-right
-     arc. A band has to be closed with these and not with the whole ring: the
-     hull of two whole rings reaches a ring's own half-height above and below
-     the slab, which is further than the step between bands, so every band
-     swallowed its neighbours and the form came out in three solid blocks. */
-  function nearArc(ring, put, down){
-    const pts = ring.map(put);
-    if (pts.length < 3) return pts;
-    const mid = put([0, 0, ring[0][2]])[1];
-    const half = pts.filter(p => down ? p[1] >= mid : p[1] <= mid);
-    return (half.length > 1 ? half : pts).sort((a, b) => a[0] - b[0]);
+  /* How thick a layer is on screen: coarse at 0 % complexity, fine at 100 %.
+     Kept in screen px and divided by the fixed scale, so the lines sit the
+     same distance apart whatever size the piece came out. */
+  const LAYER_PX = [19, 5.5];
+  const MAX_LAYERS = 150;             // past this they merge into a fill anyway
+
+  function layerCount(hv, cx, s){
+    const px = LAYER_PX[0] + clamp(cx ?? 0.5, 0, 1) * (LAYER_PX[1] - LAYER_PX[0]);
+    return clamp(Math.round(hv / (px / s)), 2, MAX_LAYERS);
   }
 
-  /* `rings` are the surface's own rings, still in the form's coordinates so
-     their heights can be read; `put` projects a point to the screen. */
-  function bandsOn(g, rings, cx, inkC, put, down){
-    if (rings.length < 3) return;
-    const zOf = i => rings[i][0][2];
-    const z0 = zOf(0), z1 = zOf(rings.length - 1);
-    if (Math.abs(z1 - z0) < 1e-6) return;
-
-    /* The boundaries are set at even heights and then snapped to the nearest
-       ring — stepping ring by ring instead gives bands of uneven thickness,
-       since a capsule's rings crowd together round its foot. */
-    const want = Math.round(BANDS[0] + clamp(cx ?? 0.5, 0, 1) * (BANDS[1] - BANDS[0]));
-    const edges = [];
-    for (let k = 0; k <= want; k++) {
-      const z = z0 + (z1 - z0) * k / want;
-      let best = 0, bd = Infinity;
-      for (let i = 0; i < rings.length; i++) {
-        const d = Math.abs(zOf(i) - z);
-        if (d < bd) { bd = d; best = i; }
-      }
-      if (edges[edges.length - 1] !== best) edges.push(best);
+  /* The ring the nozzle walks at height z, in the form's own coordinates —
+     the same profile `surface` is sampled from, read at one height. */
+  function section(form, sh, p, z){
+    const r = sh.w / 2, hv = sh.hv, pts = [];
+    let R, half = false;
+    if (form === 'capsule')      R = z < r ? r * Math.sqrt(Math.max(0, 1 - (1 - z / r) ** 2)) : r;
+    else if (form === 'cone')    R = r * (z / hv);
+    else if (form === 'shade') { const cone = hv - (p.flex || 0);
+                                 R = z <= cone ? r * (1 - z / cone) : Math.max(1.5, r * 0.04); }
+    else { half = true; const u = (hv - z) / hv;
+           R = r * Math.sqrt(Math.max(0, 1 - u * u)); }
+    if (R < 1e-6) return pts;
+    for (let i = 0; i < LSEG; i++) {
+      const a = half ? Math.PI * i / (LSEG - 1) : Math.PI * 2 * i / LSEG;
+      pts.push([R * Math.cos(a), half ? -R * Math.sin(a) : R * Math.sin(a), z]);
     }
+    if (half) { pts.push([-R, 0, z]); pts.push([R, 0, z]); }   // the cut face
+    return pts;
+  }
+  const LSEG = 30;                    // a layer line is drawn, so it wants to be smooth
 
-    g.fillStyle = SECOND(inkC);
-    // every other band, so the first colour is what is left showing between
-    for (let k = 0; k + 1 < edges.length; k += 2) {
-      const lo = nearArc(rings[edges[k]], put, down);
-      const hi = nearArc(rings[edges[k + 1]], put, down);
-      const band = lo.concat(hi.slice().reverse());
-      if (band.length > 2) { poly(g, band); g.fill(); }
+  /* The part of a projected section that is turned towards you, as a
+     left-to-right chain. Every section is convex, so that is one side of its
+     convex hull: the lower side when you are looking down on the piece and
+     the upper side when you are looking up at it. Taking the near points and
+     sorting them instead loses the corners, which a Stool's rectangle is
+     nothing but. */
+  function nearChain(pts, down){
+    const q = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (q.length < 2) return q;
+    const cross = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+    const sign = down ? -1 : 1;       // screen y grows downwards
+    const h = [];
+    for (const pt of q) {
+      while (h.length >= 2 && sign * cross(h[h.length-2], h[h.length-1], pt) <= 0) h.pop();
+      h.push(pt);
     }
+    return h;
+  }
+
+  const trace = (g, chain) => {
+    g.beginPath();
+    g.moveTo(chain[0][0], chain[0][1]);
+    for (let i = 1; i < chain.length; i++) g.lineTo(chain[i][0], chain[i][1]);
+    g.stroke();
+  };
+
+  /* `put` projects a point in the form's coordinates to the screen; `down`
+     says the eye is above the piece. The top layer is left out — the lid is
+     painted over it. */
+  function layersOn(g, form, sh, p, put, down, s){
+    const n = layerCount(sh.hv, sh.cx, s);
+    g.lineWidth = 1.4 / s;
+    for (let k = 1; k < n; k++) {
+      const chain = nearChain(section(form, sh, p, sh.hv * k / n).map(put), down);
+      if (chain.length > 1) trace(g, chain);
+    }
+    g.lineWidth = 2 / s;
   }
 
   const poly = (g, pts) => {
@@ -842,7 +836,7 @@ const Make = (() => {
      one outline with a lid stuck on — turn the view and its faces have to turn
      with it. Project the eight corners, keep the three faces pointing at the
      eye, and paint them back to front. */
-  function cuboid(g, sh, cy, sy, sp, kz){
+  function cuboid(g, sh, cy, sy, sp, kz, s){
     const r = sh.w / 2, ry = (sh.wy || sh.w) / 2;
     const pt = (dx, dy, z) => {
       const wx = sh.x + dx, wy = sh.y + dy;
@@ -877,6 +871,21 @@ const Make = (() => {
         for (let i = 1; i < f.length; i++) g.lineTo(f[i].x, f[i].y);
         g.closePath(); g.fill(); g.stroke();
       });
+
+    /* The same printed layers as every other form. A box's section is its
+       rectangle, so the near side of it is the line running across whichever
+       walls are turned towards you — corner and all. */
+    const n = layerCount(sh.hv, sh.cx, s);
+    g.lineWidth = 1.4 / s;
+    for (let k = 1; k < n; k++) {
+      const z = z0 + sh.hv * k / n;
+      const chain = nearChain(
+        [[-r,-ry],[r,-ry],[r,ry],[-r,ry]].map(([dx, dy]) => {
+          const q = pt(dx, dy, z); return [q.x, q.y];
+        }), sp >= 0);
+      if (chain.length > 1) trace(g, chain);
+    }
+    g.lineWidth = 2 / s;
   }
 
   /* A Shelves cubby: a tube running back into the wall, with its mouth cut out
