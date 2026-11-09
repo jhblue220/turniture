@@ -326,12 +326,62 @@ function show(next, making){
   // only a recording gets a scrub bar, and the canvas has to clear it
   document.documentElement.classList.toggle('has-scrub', !!making && page === 'sounds');
   if (TITLES[next]) titleEl.textContent = TITLES[next];
-  // the title sequence only runs while the main page is on screen
-  next === 'home' ? Intro.start() : Intro.stop();
+  // the film and the title sequence under it (see below)
+  atHome(next === 'home');
   paintTabs();
   if (making) Make.redraw();
   if (next === 'cart') Checkout.open();
 }
+
+/* ── the opening film ───────────────────────────────────────────────────────────────
+   As on the desktop build: the film fills the handset, and the title
+   sequence waits one screen below it. Swipe up to meet it, down to come
+   back. Each runs only while it is the thing on screen. */
+
+const heroVid  = document.querySelector('.hero__v');
+const scroller = document.getElementById('scroller');
+let deep = false;                       // is the title sequence the one on screen?
+
+/* iOS refuses to start a film in Low Power Mode, and nothing here leans on
+   it, so the refusal is let go of. */
+const playFilm = on => { on ? heroVid.play().catch(() => {}) : heroVid.pause(); };
+
+function depth(next){
+  if (next === deep) return;
+  deep = next;
+  document.documentElement.classList.toggle('is-down', deep);
+  deep ? Intro.start() : Intro.stop();
+  playFilm(!deep);
+}
+
+/* arriving at the main page always starts at the film again */
+function atHome(on){
+  const r = document.documentElement.classList;
+  r.toggle('is-home', on);
+  deep = false; r.remove('is-down');
+  Intro.stop();
+  playFilm(on);
+}
+
+scroller.addEventListener('click', e => { e.stopPropagation(); depth(true); });
+
+/* A flick of the thumb, read off the window — the picker's own swipe is on
+   the card strip and never sees these. The threshold is in real pixels, so
+   it is the same flick whatever the artboard is scaled to. */
+let filmY = null;
+addEventListener('touchstart', e => { filmY = e.touches[0].clientY; }, { passive: true });
+addEventListener('touchmove', e => {
+  if (filmY === null || page !== 'home') return;
+  const dy = filmY - e.touches[0].clientY;
+  if (Math.abs(dy) > 40) { depth(dy > 0); filmY = null; }
+}, { passive: true });
+addEventListener('touchend', () => { filmY = null; });
+
+/* and a wheel, for the handful of desktop browsers that land here */
+addEventListener('wheel', e => {
+  if (page !== 'home' || Math.abs(e.deltaY) < 2) return;
+  depth(e.deltaY > 0);
+}, { passive: true });
 
 function paintTabs(){
   tabs.forEach(t => t.classList.toggle('is-on',
@@ -566,4 +616,4 @@ function drawWave(now){
 applyColors();
 paintTabs();
 slide(0);
-Intro.start();
+atHome(true);

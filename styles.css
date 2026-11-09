@@ -36,8 +36,34 @@ body{
 button{ font:inherit; color:inherit; background:none; border:0; }
 a{ color:inherit; text-decoration:none; }
 
+/* ══ the opening film ════════════════════════════════════════════════════════
+   The main page is two screens deep: the film, and the title sequence one
+   scroll below it (Reference/Main_Video). The film is laid against the window
+   and not against the artboard — the stage is a fixed 1920 x 1080 box that
+   letterboxes in a window of another shape, and the film is meant to meet
+   every edge — so it is cropped to the window's own proportions instead. */
+.hero{
+  position:fixed; inset:0; z-index:0;
+  overflow:hidden;
+  background:var(--bg);
+  opacity:0; visibility:hidden;
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s linear .4s;
+}
+:root.is-home .hero{
+  opacity:1; visibility:visible;
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s;
+}
+.hero__v{
+  display:block; width:100%; height:100%;
+  object-fit:cover;                         /* fills whatever shape the window is */
+}
+/* scrolled down — the film leaves upwards and the type comes up after it */
+:root.is-down .hero{ transform:translateY(-100%); }
+
 .viewport{
-  position:fixed; inset:0;
+  position:fixed; inset:0; z-index:1;       /* over the film */
   display:flex; align-items:center; justify-content:center;
 }
 
@@ -105,6 +131,32 @@ a{ color:inherit; text-decoration:none; }
 
 .page{ position:absolute; inset:0; display:none; }
 .page.is-on{ display:block; }
+
+/* The title sequence waits one screen below the film and rides up with it.
+   Clipped top and bottom only — a line of type still tracks out past the
+   artboard the way it always could. */
+.page--home{ clip-path: inset(0 -2000px); }
+.page--home .intro{
+  transform:translateY(1080px);
+  transition: transform .78s cubic-bezier(.62,0,.2,1);
+}
+:root.is-down .page--home .intro{ transform:translateY(0); }
+
+/* the one hint that there is something under the film */
+.scroller{
+  position:absolute; left:50%; bottom:40px; z-index:12;
+  width:48px; height:28px; margin-left:-24px;
+  color:var(--fg);
+  animation: nudge 2.1s ease-in-out infinite;
+  transition: opacity .3s ease, visibility 0s linear .3s, color .35s ease;
+}
+.scroller svg{ display:block; width:100%; height:100%; }
+:root.is-down .scroller{ opacity:0; visibility:hidden; pointer-events:none; }
+@keyframes nudge{
+  0%,100%{ transform:translateY(0);  opacity:.75 }
+  50%    { transform:translateY(9px); opacity:1 }
+}
+@media (prefers-reduced-motion: reduce){ .scroller{ animation:none } }
 
 /* main page — the looping title sequence (see intro.js).
    Type is set at the 메인_1 hero size, centred on the artboard. */

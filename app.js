@@ -262,8 +262,8 @@ function show(next, making){
   pages.forEach(p => p.classList.toggle('is-on', p.dataset.page === shown));
   document.documentElement.classList.toggle('is-flip', !!making);
   if (TITLES[next]) titleEl.textContent = TITLES[next];
-  // the title sequence only runs while the main page is on screen
-  next === 'home' ? Intro.start() : Intro.stop();
+  // the film and the title sequence under it (see below)
+  atHome(next === 'home');
   paintTabs();
   if (making) Make.redraw();
   if (next === 'cart') Checkout.open();
@@ -274,6 +274,67 @@ function paintTabs(){
     t.dataset.tab === page || (t.dataset.tab === 'colors' && colorsOpen)));
   navIcons.forEach(b => b.classList.toggle('is-on', b.dataset.go === page));
 }
+
+/* ── the opening film ───────────────────────────────────────────────────────────────
+   The main page is two screens deep (Reference/Main_Video). The film is the
+   first thing you meet, filling the window; the title sequence that used to
+   be here on its own waits one screen below it, and scrolling back up brings
+   the film in front of you again.
+
+   Each only runs while it is the thing on screen — there is nothing to be
+   gained by dealing typefaces behind a film, or by playing a film nobody can
+   see — and leaving the main page stops both. */
+
+const heroEl   = document.querySelector('.hero');
+const heroVid  = heroEl.querySelector('video');
+const scroller = document.getElementById('scroller');
+let down = false;                       // is the title sequence the one on screen?
+
+/* A browser may refuse to start it (Low Power Mode, a strict autoplay
+   setting). Nothing else leans on it, so the refusal is let go of. */
+const playFilm = on => { on ? heroVid.play().catch(() => {}) : heroVid.pause(); };
+
+function depth(next){
+  if (next === down) return;
+  down = next;
+  document.documentElement.classList.toggle('is-down', down);
+  down ? Intro.start() : Intro.stop();
+  playFilm(!down);
+}
+
+/* arriving at the main page always starts at the film again */
+function atHome(on){
+  const r = document.documentElement.classList;
+  r.toggle('is-home', on);
+  down = false; r.remove('is-down');
+  Intro.stop();
+  playFilm(on);
+}
+
+/* One notch either way is the whole gesture: a trackpad sends a flurry of
+   them and they all say the same thing, so the move is idempotent. */
+addEventListener('wheel', e => {
+  if (page !== 'home' || Math.abs(e.deltaY) < 2) return;
+  depth(e.deltaY > 0);
+}, { passive: true });
+
+addEventListener('keydown', e => {
+  if (page !== 'home') return;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') depth(true);
+  else if (e.key === 'ArrowUp' || e.key === 'PageUp') depth(false);
+});
+
+scroller.addEventListener('click', () => depth(true));
+
+/* a tablet showing the desktop build (?desktop=1) has no wheel to turn */
+let touchY = null;
+addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+addEventListener('touchmove', e => {
+  if (touchY === null || page !== 'home') return;
+  const dy = touchY - e.touches[0].clientY;
+  if (Math.abs(dy) > 40) { depth(dy > 0); touchY = null; }
+}, { passive: true });
+addEventListener('touchend', () => { touchY = null; });
 
 /* ── the option bar box ─────────────────────────────────────────────────────
    It starts off screen-less. The first thing you point at makes it appear
@@ -431,4 +492,4 @@ applyColors();
 paintTabs();
 slide(0);
 moveCursor();
-Intro.start();
+atHome(true);

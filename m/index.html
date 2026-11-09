@@ -13,6 +13,16 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
+<!-- ── the opening film ───────────────────────────────────
+     Against the window rather than the artboard, so it meets every edge of
+     the handset; `object-fit:cover` crops it to that shape. muted +
+     playsinline is what iOS asks for before it will start a film by itself. -->
+<div class="hero" aria-hidden="true">
+  <video class="hero__v" src="../Video/main-loop.mp4"
+         autoplay loop muted playsinline preload="auto"></video>
+</div>
+
 <div class="viewport">
   <div class="stage" id="stage">
 
@@ -31,7 +41,14 @@
     </nav>
 
     <!-- ── main page ────────────────────────────────────── -->
+    <!-- Two screens deep: the film, and the title sequence one swipe below. -->
     <section class="page page--home is-on" data-page="home">
+      <button class="scroller" id="scroller" aria-label="Scroll down to the title">
+        <svg viewBox="0 0 48 28" aria-hidden="true">
+          <path d="M5 6 L24 22 L43 6" fill="none" stroke="currentColor" stroke-width="5"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <h1 class="intro" id="intro">
         <span class="intro__line" id="introWord"><span class="intro__fx"><span class="word" id="word"></span></span></span>
         <span class="intro__line" id="introTagline"><span class="intro__fx">Turn It Yours</span></span>
