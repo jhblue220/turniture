@@ -23,6 +23,7 @@
 | `m/styles.css` | 모바일 레이아웃. 390 폭 아트보드 좌표 |
 | `m/app.js` | 모바일 탭 전환, 탭-투-오픈, 스와이프, Color 패널 |
 | `Video/` | 메인 화면에 깔리는 영상. `main-loop.mp4`가 페이지가 쓰는 파일 |
+| `favicon.svg` · `.ico` · `apple-touch-icon.png` | 탭·홈화면 아이콘. 원본은 `Icon/Favicon.svg` |
 | `Icon/` | 헤더·버튼에 쓰는 아이콘 원본 SVG |
 | `Reference/` | 작업 기준이 된 시안 이미지 |
 
