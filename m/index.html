@@ -31,25 +31,29 @@
   <div class="stage" id="stage">
 
     <!-- ── header ───────────────────────────────────────────
-         The wordmark alone at the top; everything you can press is in the
-         bar along the bottom, where a thumb reaches.          -->
+         The wordmark at the top left and, at the top right, the five things
+         you can press. Everything is an icon now — Image and Sound are the
+         two ways in, Colours opens the palette, and the last two are pages
+         of their own. Whichever is open is marked by the option bar box
+         sitting behind it, which knocks its glyph out in the page colour. -->
     <a class="logo" href="#" data-go="home" aria-label="TURNitURE home"></a>
 
     <div class="navbox" id="navbox" aria-hidden="true"></div>
     <nav class="nav">
-      <button class="nav__tab" data-tab="images">Image</button>
-      <button class="nav__tab" data-tab="sounds">Sound</button>
-      <button class="nav__tab" data-tab="colors">Colors</button>
-      <button class="nav__icon nav__icon--profile" data-go="profile" aria-label="Profile"></button>
-      <button class="nav__icon nav__icon--cart" data-go="cart" aria-label="Cart"></button>
+      <button class="nav__b" data-nav="images"  aria-label="Image"></button>
+      <button class="nav__b" data-nav="sounds"  aria-label="Sound"></button>
+      <button class="nav__b" data-nav="colors"  aria-label="Colours"></button>
+      <button class="nav__b" data-nav="profile" aria-label="Profile"></button>
+      <button class="nav__b" data-nav="cart"    aria-label="Cart"></button>
     </nav>
 
     <!-- ── main page ────────────────────────────────────── -->
     <!-- Two screens deep: the film, and the title sequence one swipe below. -->
     <section class="page page--home is-on" data-page="home">
       <button class="scroller" id="scroller" aria-label="Scroll down to the title">
-        <svg viewBox="0 0 48 28" aria-hidden="true">
-          <path d="M5 6 L24 22 L43 6" fill="none" stroke="currentColor" stroke-width="5"
+        <span class="scroller__t">Scroll</span>
+        <svg viewBox="0 0 89 48" aria-hidden="true">
+          <path d="M5 5 L44.5 43 L84 5" fill="none" stroke="currentColor" stroke-width="10"
                 stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
@@ -68,22 +72,23 @@
 
       <div class="window" id="window"><div class="items" id="items"></div></div>
 
+      <!-- A bare chevron at each edge and the five dots low on the screen —
+           with one card showing there is otherwise nothing to say where in
+           the five you are. -->
       <div class="pager">
         <button class="arrow arrow--prev" id="prev" aria-label="Previous">
-          <svg viewBox="0 0 62 62" aria-hidden="true">
-            <circle cx="31" cy="31" r="31" fill="currentColor"/>
-            <path d="M26 17 L41 31 L26 45" fill="none" stroke="var(--bg)" stroke-width="7"
+          <svg viewBox="0 0 48 89" aria-hidden="true">
+            <path d="M5 5 L43 44.5 L5 84" fill="none" stroke="currentColor" stroke-width="10"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="arrow arrow--next" id="next" aria-label="Next">
+          <svg viewBox="0 0 48 89" aria-hidden="true">
+            <path d="M5 5 L43 44.5 L5 84" fill="none" stroke="currentColor" stroke-width="10"
                   stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
         <div class="dots" id="dots" aria-hidden="true"></div>
-        <button class="arrow arrow--next" id="next" aria-label="Next">
-          <svg viewBox="0 0 62 62" aria-hidden="true">
-            <circle cx="31" cy="31" r="31" fill="currentColor"/>
-            <path d="M26 17 L41 31 L26 45" fill="none" stroke="var(--bg)" stroke-width="7"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </div>
     </section>
 
@@ -123,8 +128,8 @@
         <div class="make__btns">
           <button class="rbtn" data-play aria-label="Play">
             <svg viewBox="0 0 92 92" aria-hidden="true">
-              <path class="i-play" d="M36 28 L66 46 L36 64 Z"/>
-              <path class="i-pause" d="M34 28h10v36H34z M48 28h10v36H48z"/>
+              <path class="i-play" d="M22 12 L71 46 L22 80 Z"/>
+              <path class="i-pause" d="M28 16h13v60H28z M51 16h13v60H51z"/>
             </svg>
           </button>
           <button class="rbtn rbtn--mode" data-mode>2D</button>

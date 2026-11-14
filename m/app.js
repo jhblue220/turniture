@@ -16,8 +16,7 @@ const colors  = document.getElementById('colors');
 const swatchesEl = document.getElementById('swatches');
 const titleEl = document.querySelector('[data-title]');
 const pages   = document.querySelectorAll('.page');
-const tabs    = document.querySelectorAll('.nav__tab');
-const navIcons = document.querySelectorAll('.nav__icon');
+const navBtns = [...document.querySelectorAll('.nav__b')];
 
 const TITLES = { images: 'Turn your image into', sounds: 'Turn your sound into' };
 /* the pages that are a page in their own right rather than a picker tab */
@@ -31,29 +30,29 @@ let slots = { 1: startFg, 2: startBg };
 let nextSlot = 1;
 
 /* ── artboard scaling ───────────────────────────────────────────────────────
-   Width only: the artboard is 390 across and the type and spacing are sized
-   for it, so the scale follows the screen's width and the height is taken as
-   it comes. --vh is that height back in artboard units, which is what lets
-   the stylesheet anchor things to the bottom of the screen.
+   Width only: the artboard is 598 across — the width the sheets in Reference/
+   are drawn on — and the type and spacing are sized for it, so the scale
+   follows the screen's width and the height is taken as it comes. --vh is
+   that height back in artboard units, which is what lets the stylesheet
+   anchor things to the bottom of the screen.
 
-   Capped, because the redirect also catches small tablets and 1.35 is as far
-   as this composition wants to be blown up.                              */
+   Capped at 1, because the redirect also catches small tablets and the
+   composition does not want to be blown up past the size it was drawn.  */
 
-const MAXK = 1.35;
+const MAXK = 1;
 
-/* The card is the desktop card scaled down; --s is how far down. It is as
-   close to 0.70 as the window's own height allows, so a tall handset gets the
-   big card and a short one gets a smaller card rather than a cropped one.
-   WIN_TOP / WIN_BOT are the window's insets in styles.css. */
-const CARD = 574, WIN_TOP = 180, WIN_BOT = 150, SMAX = 0.7;
+/* The card is 361 x 574 at --s = 1, which is the size 02_Select_02 draws it.
+   On a handset too short to hold that between the window's own insets it
+   comes down together rather than being cropped. */
+const CARD = 574, WIN_TOP = 380, WIN_BOT = 301, SMAX = 1;
 
 function fit(){
-  const k = Math.min(innerWidth / 390, MAXK);
+  const k = Math.min(innerWidth / 598, MAXK);
   const vh = innerHeight / k;
   const r = document.documentElement.style;
   r.setProperty('--k', k);
   r.setProperty('--vh', vh);
-  r.setProperty('--s', Math.min(SMAX, (vh - WIN_TOP - WIN_BOT - 10) / CARD).toFixed(4));
+  r.setProperty('--s', Math.min(SMAX, (vh - WIN_TOP - WIN_BOT) / CARD).toFixed(4));
   return k;
 }
 let k = fit();
@@ -62,7 +61,13 @@ addEventListener('resize', () => { k = fit(); });
 /* ── items ──────────────────────────────────────────────────────────────── */
 
 document.querySelector('.logo').innerHTML = LOGO_SVG;
-navIcons.forEach(b => { b.innerHTML = ICONS[b.dataset.go]; });
+
+/* The header is five glyphs now. Image, Sound and the palette are the three
+   added for this build (Icon/Mobile_Icon/); the last two are the ones the
+   desktop bar already used. */
+const GLYPH = { images: 'image', sounds: 'sound', colors: 'colors',
+                profile: 'profile', cart: 'cart' };
+navBtns.forEach(b => { b.innerHTML = ICONS[GLYPH[b.dataset.nav]]; });
 
 /* The silhouettes are sized off --s like the rest of the card, so they follow
    it when the window height changes. The viewBox is left at the traced size,
@@ -284,7 +289,7 @@ document.getElementById('next').addEventListener('click', e => { e.stopPropagati
    window sets touch-action:none. The threshold is in real pixels, so it is
    the same flick of the thumb whatever the artboard is scaled to. */
 
-const SWIPE = 26;                              // artboard px before it counts
+const SWIPE = 40;                              // artboard px before it counts
 let down = null, swiped = false;
 
 win.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; swiped = false; });
@@ -383,37 +388,34 @@ addEventListener('wheel', e => {
   depth(e.deltaY > 0);
 }, { passive: true });
 
+/* Whichever of the five is open gets the box, and its glyph is knocked out
+   in the page colour. On the main page none of them is open — the film is
+   not one of the five — so the box goes away. */
 function paintTabs(){
-  tabs.forEach(t => t.classList.toggle('is-on',
-    t.dataset.tab === page || (t.dataset.tab === 'colors' && colorsOpen)));
-  navIcons.forEach(b => b.classList.toggle('is-on', b.dataset.go === page));
+  const lit = colorsOpen ? 'colors' : page === 'home' ? null : page;
+  navBtns.forEach(b => b.classList.toggle('is-on', b.dataset.nav === lit));
+  boxTo(navBtns.find(b => b.dataset.nav === lit) || null);
 }
 
 /* ── the option bar box ─────────────────────────────────────────────────────
    On the desktop it follows the pointer and parks on a click. With nothing to
-   follow it simply appears where you tap and stays, which turns it into the
-   marker for whichever tab is open. */
+   follow it marks whichever of the five buttons is open — paintTabs() puts it
+   there — and travels when another one is opened. The buttons are 44 square,
+   so the box is simply their own box.                                      */
 
 const navbox = document.getElementById('navbox');
-const logoEl = document.querySelector('.logo');
-const boxTargets = [logoEl, ...tabs, ...navIcons];
 let boxAt = null;
 
 function boxRect(el){
   const kk = +getComputedStyle(document.documentElement).getPropertyValue('--k');
   const s = stage.getBoundingClientRect(), r = el.getBoundingClientRect();
-  const fs = parseFloat(getComputedStyle(el).fontSize) || r.height / kk;
-  const padX = fs * 0.31, padY = fs * 0.25;
-  // the tabs carry padding for the tap target; the box hugs the type instead
-  const py = (parseFloat(getComputedStyle(el).paddingTop) || 0);
-  const px2 = (parseFloat(getComputedStyle(el).paddingLeft) || 0);
-  return { x: (r.left - s.left) / kk + px2 - padX, y: (r.top - s.top) / kk + py - padY,
-           w: r.width / kk - px2 * 2 + padX * 2,   h: r.height / kk - py * 2 + padY * 2 };
+  return { x: (r.left - s.left) / kk, y: (r.top - s.top) / kk,
+           w: r.width / kk,           h: r.height / kk };
 }
 
 function boxTo(el){
-  boxTargets.forEach(t => t.classList.toggle('is-boxed', t === el));
   if (!el) { navbox.classList.remove('is-on'); boxAt = null; return; }
+  if (el === boxAt && navbox.classList.contains('is-on')) return;
   const fresh = !navbox.classList.contains('is-on');
   const r = boxRect(el);
   navbox.classList.toggle('is-pop', fresh);     // appear in place, or travel
@@ -429,27 +431,21 @@ function boxTo(el){
   boxAt = el;
 }
 
-boxTargets.forEach(el => el.addEventListener('click', () => boxTo(el)));
-// keep it on the parked item when the window resizes under it
-addEventListener('resize', () => { if (boxAt) boxTo(boxAt); });
+// keep it on the parked button when the window resizes under it
+addEventListener('resize', () => { const at = boxAt; boxAt = null; if (at) boxTo(at); });
 
-tabs.forEach(tab => tab.addEventListener('click', e => {
+navBtns.forEach(b => b.addEventListener('click', e => {
   e.stopPropagation();
-  const t = tab.dataset.tab;
-  if (t === 'colors') { colorsOpen ? closeColors() : openColors(); return; }
-  show(t);
+  const n = b.dataset.nav;
+  if (n === 'colors') { colorsOpen ? closeColors() : openColors(); return; }
+  show(n);
 }));
 
-logoEl.addEventListener('click', e => {
+document.querySelector('.logo').addEventListener('click', e => {
   e.preventDefault();
   e.stopPropagation();
   show('home');
 });
-
-navIcons.forEach(b => b.addEventListener('click', e => {
-  e.stopPropagation();
-  show(b.dataset.go);
-}));
 
 /* ── colour panel ───────────────────────────────────────────────────────────
    Fourteen chips down the right edge. The column spreads them between its top
@@ -545,7 +541,7 @@ Make.onLive((what, stream) => {
    the take runs and then scroll, so the row is a picture of how long you have
    been going as much as of how loud. */
 
-const BARS = 18, BAR_MS = 110;
+const BARS = 13, BAR_MS = 130;
 let ac = null, analyser = null, buf = null, waveRaf = null;
 let levels = [], lastBar = 0;
 

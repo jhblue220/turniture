@@ -2,14 +2,19 @@
    TURNitURE — phone layout.
 
    The desktop page is one 1920 x 1080 artboard scaled to fit, which on a
-   phone lands at about 20% and is unreadable. Here the artboard is 390 wide
-   — the width every number below is authored in — and scaled to the screen's
-   width alone, so the horizontal composition is identical on every handset
-   while the height stays real: --vh is the window height in artboard units,
-   and anything that has to breathe is anchored to both top and bottom.
+   phone lands at about 20% and is unreadable. Here the artboard is 598 wide
+   — the width every number below is authored in, straight off the sheets in
+   Reference/ — and scaled to the screen's width alone, so the horizontal
+   composition is identical on every handset while the height stays real:
+   --vh is the window height in artboard units, and anything that has to
+   breathe is anchored to both top and bottom. The sheets are 598 x 1311,
+   which is about the shape of a handset, so --vh lands near 1311 and the
+   numbers below read as the sheet reads.
 
-   The card on the picker page is the desktop card at exactly 0.70, so its
-   internal proportions are the ones that were measured off the mockups.
+   Two screens have not been redrawn at this width: profile and the cart.
+   They are still authored on the old 390 grid and blown up to the same
+   physical width by --old, so their own numbers go on meaning what they
+   meant. Anything redrawn is in 598 units with no --old anywhere near it.
    ========================================================================== */
 
 :root{
@@ -17,10 +22,10 @@
   --c2: #6F5D00;   /* colour slot 2 — page background     */
   --fg: var(--c1);
   --bg: var(--c2);
-  --on: #FFFFFF;   /* active tab                          */
   --k : 1;         /* artboard scale,  set from app.js    */
-  --vh: 844;       /* window height in artboard units     */
-  --s : .7;        /* card scale against the 1920 artboard */
+  --vh: 1311;      /* window height in artboard units     */
+  --s : 1;         /* card scale — 1 is the sheet, less on a short handset */
+  --old: 1.5333;   /* 598 / 390, for the two screens not yet redrawn */
 }
 /* the "Let's Make" step runs the palette the other way round, as in Tray_01 */
 :root.is-flip{ --fg: var(--c2); --bg: var(--c1); }
@@ -74,62 +79,63 @@ a{ color:inherit; text-decoration:none; }
    same units, always matches the window exactly. */
 .stage{
   position:relative;
-  width:390px; height:calc(var(--vh) * 1px);
+  width:598px; height:calc(var(--vh) * 1px);
   flex:0 0 auto;
   transform:scale(var(--k));
   transform-origin:top center;
   touch-action:manipulation;
 }
 
-/* ── header and the bottom bar ───────────────────────────────────────────
-   The wordmark sits on its own, centred at the top; everything you press is
-   in a row along the bottom where a thumb reaches (Reference/MobileSelect).
-   Numbers are off that sheet: logo 201 wide at y52, bar 36 tall ending 34
-   above the bottom edge. */
+/* ── header ──────────────────────────────────────────────────────────────
+   The wordmark top left, the five buttons top right, all on one band. Every
+   number is off the sheets: the wordmark 188 wide at x27, and the buttons
+   44 square with their glyphs centred on y117. The three on the left are
+   the ways in and the palette; the two on the right are pages. */
 
 .logo{
-  position:absolute; left:50%; top:52px; z-index:11;
-  width:201px; height:29px;                 /* 369 x 54, to the same ratio */
-  margin-left:-100px;
+  position:absolute; left:27px; top:102px; z-index:11;
+  width:188px; height:27.5px;               /* 369 x 54, to the same ratio */
   display:block;
   color:var(--fg);
   transition: color .35s ease;
 }
 .logo svg{ display:block; width:100%; height:100%; }
 
-.nav{
-  position:absolute; left:0; right:0; bottom:34px; z-index:11;
-  height:36px;
-  display:flex; align-items:center; justify-content:center; gap:13px;
-}
-.nav__tab{
-  font-size:24px; line-height:1; font-weight:900;
-  padding:6px 2px; margin:0 -2px;
-  transition: color .2s ease;
-}
-.nav__tab.is-on{ color:var(--on); }
-/* while the box is sitting behind an item, that item reads as a cut-out */
-.nav__tab.is-boxed, .logo.is-boxed{ color:var(--bg); }
-.nav__tab.is-boxed.is-on{ color:var(--bg); }
+.nav{ position:absolute; left:0; top:95px; z-index:11; height:44px; }
 
-/* the two glyphs at the end of the bar. The height goes on the svg, not the
-   button, or the padding eats into it. */
-.nav__icon{
-  position:relative; padding:6px 0;
+/* The box is the hit target and what the option bar box fills; the glyph is
+   centred in it at the size it was drawn. */
+.nav__b{
+  position:absolute; top:0; width:44px; height:44px;
+  display:grid; place-items:center;
   line-height:0; color:var(--fg);
   transition: color .2s ease;
 }
-.nav__icon svg{ display:block; width:auto; }
-.nav__icon--profile{ margin-left:10px; }
-.nav__icon--profile svg{ height:25px; }
-.nav__icon--cart{ margin-left:7px; }
-.nav__icon--cart svg{ height:26px; }
-.nav__icon.is-on{ color:var(--on); }
-.nav__icon.is-boxed, .nav__icon.is-boxed.is-on{ color:var(--bg); }
+.nav__b[data-nav="images"] { left:322px; }
+.nav__b[data-nav="sounds"] { left:372px; }
+.nav__b[data-nav="colors"] { left:421px; }
+.nav__b[data-nav="profile"]{ left:484px; }
+.nav__b[data-nav="cart"]   { left:530px; }
+
+.nav__b svg{ display:block; width:auto; }
+.nav__b[data-nav="images"]  svg{ height:28px; }
+.nav__b[data-nav="sounds"]  svg{ height:28px; }
+.nav__b[data-nav="colors"]  svg{ height:26px; }
+.nav__b[data-nav="profile"] svg{ height:24.5px; }
+.nav__b[data-nav="cart"]    svg{ height:26.3px; }
+
+/* with the box behind it the glyph reads as a cut-out */
+.nav__b.is-on{ color:var(--bg); }
+
+/* Over the film there is no telling what is underneath, so the header goes
+   light rather than taking a page colour that may sink into the picture.
+   One swipe down there is a page colour again, and it takes that.        */
+:root.is-home:not(.is-down) .logo,
+:root.is-home:not(.is-down) .nav__b{ color:#D9D9D9; }
 
 /* ══ option bar box ══════════════════════════════════════════════════════════
-   With no pointer to follow there is nothing to chase: the box appears where
-   you tap and parks there, so it reads as a marker for the open tab. */
+   With no pointer to follow there is nothing to chase: it parks on whichever
+   button is open and travels when another one is. */
 .navbox{
   position:absolute; left:0; top:0; z-index:10;
   background:var(--fg);
@@ -153,29 +159,47 @@ a{ color:inherit; text-decoration:none; }
 .page{ position:absolute; inset:0; display:none; }
 .page.is-on{ display:block; }
 
+/* ── the two screens still on the old grid ───────────────────────────────
+   Profile and the cart were drawn for a 390 artboard and have not been
+   redrawn at 598. Rather than multiply a hundred numbers out by hand they
+   keep their own units and are blown up to the same physical width, which
+   is all --old is. The colour panel goes the same way, pinned to the right
+   edge instead of the left so its column of chips stays where it was. */
+.page--profile, .page--cart{
+  left:0; top:0; right:auto; bottom:auto;
+  width:390px; height:calc(var(--vh) * 1px / var(--old));
+  transform:scale(var(--old)); transform-origin:top left;
+}
+
 /* The title sequence waits one screen below the film — one screen being the
    window's own height, which is what the artboard is here. Clipped top and
-   bottom only, so a line of type can still track out past the edges. */
+   bottom only, so a line of type can still track out past the edges. The
+   type inside is on the old grid too, so it carries --old as well; the
+   scale is written second, which leaves the slide in artboard units. */
 .page--home{ clip-path: inset(0 -1000px); }
 .page--home .intro{
-  transform:translateY(calc(var(--vh) * 1px));
+  transform:translateY(calc(var(--vh) * 1px)) scale(var(--old));
   transition: transform .72s cubic-bezier(.62,0,.2,1);
 }
-:root.is-down .page--home .intro{ transform:translateY(0); }
+:root.is-down .page--home .intro{ transform:translateY(0) scale(var(--old)); }
 
-/* the one hint that there is something under the film */
+/* ── the one hint that there is something under the film ─────────────────
+   Main.svg: the word with the chevron under it, the pair sitting 53 off the
+   bottom edge. */
 .scroller{
-  position:absolute; left:50%; bottom:96px; z-index:12;
-  width:40px; height:24px; margin-left:-20px;
+  position:absolute; left:0; right:0; bottom:53px; z-index:12;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
   color:var(--fg);
   animation: nudge 2.1s ease-in-out infinite;
   transition: opacity .3s ease, visibility 0s linear .3s, color .35s ease;
 }
-.scroller svg{ display:block; width:100%; height:100%; }
+:root.is-home:not(.is-down) .scroller{ color:#D9D9D9; }
+.scroller__t{ font-size:26px; line-height:1; font-weight:900; }
+.scroller svg{ display:block; width:89px; height:48px; }
 :root.is-down .scroller{ opacity:0; visibility:hidden; pointer-events:none; }
 @keyframes nudge{
-  0%,100%{ transform:translateY(0);  opacity:.75 }
-  50%    { transform:translateY(8px); opacity:1 }
+  0%,100%{ transform:translateY(0);    opacity:.75 }
+  50%    { transform:translateY(12px); opacity:1 }
 }
 @media (prefers-reduced-motion: reduce){ .scroller{ animation:none } }
 
@@ -218,44 +242,45 @@ a{ color:inherit; text-decoration:none; }
 #introLogo .intro__fx{ width:340px; color:var(--fg); }
 #introLogo svg{ display:block; width:100%; height:auto; }
 
-/* ── images / sounds page ───────────────────────────────────────────────── */
+/* ══ images / sounds page ════════════════════════════════════════════════════
+   02_Select · 02_Select_02. One card at a time, the neighbours stepped clean
+   off both edges, a chevron at each screen edge and the five dots low down.
+   Every number here is off those two sheets. */
 
-/* The desktop sets this on one 140px line. At this width it wraps, so it is
-   given a measure to wrap inside rather than being left to the screen edge. */
 .picker__title{
-  position:absolute; left:16px; top:118px; width:300px;
-  font-size:46px; line-height:.95; font-weight:900;
+  position:absolute; left:0; right:0; top:267px;
+  text-align:center;
+  font-size:55px; line-height:1; font-weight:900;
 }
 
 /* ── the card ───────────────────────────────────────────────────────────────
-   One 286px cell centred on a 390px screen, so 52px of each neighbour shows
-   at the edges. Swipe or tap the arrows to step; see app.js.             */
+   361 x 574, which is the desktop card at its own size now that the artboard
+   is 598. --s is how far down from that it has to come on a short handset;
+   app.js works it out from the height the window actually has, so a short
+   screen gets a smaller card rather than a cropped one. Every number inside
+   the card is taken at --s, so its proportions stay the measured ones. */
 
 .window{
-  position:absolute; left:0; right:0; top:180px; bottom:150px;
+  position:absolute; left:0; right:0; top:380px; bottom:301px;
   overflow:hidden;
   touch-action:none;                          /* the swipe is ours to read */
 }
-/* The step is a flat 330, not the card's own pitch: the card is at most 390
-   wide and centred, so a step this long parks the neighbours past both edges
-   instead of letting a sliver of the next label bleed in. */
+/* The step is a flat 506, not the card's own pitch: the card is 361 and
+   centred, so a step this long parks the neighbours past both edges instead
+   of letting a sliver of the next label bleed in. */
 .items{
-  position:absolute; left:calc((390px - var(--s) * 361px) / 2);  /* centres card 0 */
+  position:absolute; left:calc((598px - var(--s) * 361px) / 2);  /* centres card 0 */
   top:0; right:0; bottom:0;
-  transform:translateX(calc(var(--pos, 0) * -330px));
+  transform:translateX(calc(var(--pos, 0) * -506px));
   transition: transform var(--slide);
 }
 
 :root{ --slide: .52s cubic-bezier(.34,1.28,.4,1); }   /* snappy, slight overshoot */
 
-/* Every number on the card is the desktop card's, taken at --s, so its
-   internal proportions stay the measured ones whatever the card is sized to.
-   app.js picks --s from the height the window actually has, which is what
-   keeps a short handset from cropping the card instead of shrinking it. */
 .item{
   position:absolute;
   top:calc(50% - var(--s) * 287px);
-  left:calc(var(--i) * 330px);
+  left:calc(var(--i) * 506px);
   width:calc(var(--s) * 361px); height:calc(var(--s) * 574px);
 }
 
@@ -270,29 +295,38 @@ a{ color:inherit; text-decoration:none; }
 }
 .item.is-hot .item__box{ opacity:1; transform:scale(1); }
 
+/* Both silhouettes hang off the card's bottom edge, but not off the same
+   line: closed, the single shape sits 162 up from it; open, the cluster
+   sits 203 up, which is where 02_Select_02 puts it. */
 .item__shape{
-  position:absolute; left:0; right:0; bottom:calc(var(--s) * 209px); height:0;
+  position:absolute; left:0; right:0; bottom:0; height:0;
 }
 .item__shape svg{
-  display:block; position:absolute; left:50%; bottom:calc(0px - var(--dy, 0px));
+  display:block; position:absolute; left:50%;
   transform:translateX(-50%);
 }
 .item__shape svg path{ transition: fill .35s ease; }
-.item__shape .s-rest { fill:var(--fg); transition: opacity .18s ease, fill .35s ease; }
-.item__shape .s-hover{ fill:var(--bg); opacity:0; transition: opacity .18s ease .06s, fill .35s ease; }
+.item__shape .s-rest {
+  bottom:calc(var(--s) * 162px);
+  fill:var(--fg); transition: opacity .18s ease, fill .35s ease;
+}
+.item__shape .s-hover{
+  bottom:calc(var(--s) * 203px - var(--dy, 0px));
+  fill:var(--bg); opacity:0; transition: opacity .18s ease .06s, fill .35s ease;
+}
 .item.is-hot .s-rest { opacity:0; }
 .item.is-hot .s-hover{ opacity:1; }
 
 .item__label{
-  position:absolute; left:0; right:0; top:calc(var(--s) * 404px);
+  position:absolute; left:0; right:0; top:calc(var(--s) * 452px);
   text-align:center;
-  font-size:calc(var(--s) * 61px); line-height:1; font-weight:900;
+  font-size:calc(var(--s) * 48px); line-height:1; font-weight:900;
   transition: color .2s ease;
 }
 .item__size{
-  position:absolute; left:0; right:0; top:calc(var(--s) * 464px);
+  position:absolute; left:0; right:0; top:calc(var(--s) * 504px);
   text-align:center;
-  font-size:calc(var(--s) * 44px); line-height:1; font-weight:800;   /* Heavy */
+  font-size:calc(var(--s) * 44.5px); line-height:1; font-weight:800;   /* Heavy */
   color:var(--bg);
   opacity:0;
   transition: opacity .2s ease, color .35s ease;
@@ -301,34 +335,42 @@ a{ color:inherit; text-decoration:none; }
 .item.is-hot .item__size { opacity:1; }
 
 /* ── pager ──────────────────────────────────────────────────────────────────
-   The desktop puts the arrows outside the window, which here would mean on
-   top of the cropped neighbours. They sit under the card instead, with the
-   dots between them — with one card visible there is otherwise nothing to
-   say where in the five you are. */
-.pager{
-  position:absolute; left:0; right:0; bottom:86px; height:44px;
-  display:flex; align-items:center; justify-content:center; gap:22px;
-}
+   The chevrons are at the screen edges, level with the closed silhouette
+   rather than with the card, and the dots sit well below both. The wrapper
+   lets everything through so the card underneath still takes a swipe. */
+.pager{ position:absolute; inset:0; pointer-events:none; }
 .arrow{
-  width:44px; height:44px; flex:0 0 auto; color:var(--fg);
+  position:absolute; top:615px; z-index:3;
+  width:48px; height:89px; color:var(--fg);
+  pointer-events:auto;
   transition: opacity .25s ease;
 }
 .arrow svg{ display:block; width:100%; height:100%; }
-.arrow--prev{ transform:scaleX(-1); }              /* same glyph, mirrored */
+.arrow--prev{ left:41px; transform:scaleX(-1); }   /* same glyph, mirrored */
+.arrow--next{ right:35px; }
 .arrow.is-off{ opacity:.22; pointer-events:none; }
 
-.dots{ display:flex; align-items:center; gap:9px; }
-.dot{
-  width:7px; height:7px; border-radius:50%;
-  background:var(--fg); opacity:.3;
-  transition: opacity .25s ease, transform .25s ease, background-color .35s ease;
+.dots{
+  position:absolute; left:0; right:0; bottom:254px;
+  display:flex; align-items:center; justify-content:center; gap:20px;
+  pointer-events:auto;
 }
-.dot.is-on{ opacity:1; transform:scale(1.35); }
+.dot{
+  width:14px; height:14px; border-radius:50%;
+  background:var(--fg); opacity:.35;
+  transition: opacity .25s ease, background-color .35s ease;
+}
+.dot.is-on{ opacity:1; }
 
 /* ── colour panel ───────────────────────────────────────────────────────── */
 
+/* Still on the old 390 grid (see --old above), pinned to the right edge so
+   the column of chips stays against it. 390 x --old is the full 598, so the
+   panel still covers the screen exactly. */
 .colors{
-  position:absolute; inset:0;
+  position:absolute; right:0; top:0; left:auto; bottom:auto;
+  width:390px; height:calc(var(--vh) * 1px / var(--old));
+  transform:scale(var(--old)); transform-origin:top right;
   pointer-events:none;          /* only the swatches themselves are tappable */
   visibility:hidden;
 }
@@ -408,36 +450,35 @@ a{ color:inherit; text-decoration:none; }
           mask-image:linear-gradient(to right, transparent 83%, #000 100%); }
 
 /* ══ make page ═══════════════════════════════════════════════════════════════
-   The desktop sets the two input boxes side by side and the result in two
-   columns. Both stack here, and both steps are anchored top and bottom so
-   they fill whatever height the handset has.                                */
+   03_Drop_or_Live · 03_Live_image · 03_Image_Final and the three 04_ sheets
+   for a sound. The desktop sets the two input boxes side by side and the
+   result in two columns; both stack here. Everything below is off those six
+   sheets, and the sound layout differs enough from the picture one that it
+   is written out separately — has-scrub on the root is app.js saying this
+   piece came from a recording. */
 
-/* MobileSelect leaves the step untitled — the two squares are the whole of
-   it — so the heading only shows up on the result. */
+/* The sheets leave the step untitled — the two squares are the whole of it. */
 .make__title{ display:none; }
 
-/* Two squares, one over the other, centred between the wordmark and the bar:
-   246 each with 35 between them, shrinking together on a short handset. */
+/* ── step 2 · what goes in ──────────────────────────────────────────────────
+   Two 434 squares, 29 apart. The first is filled and the second outlined,
+   which is the whole of the difference between dropping one in and taking
+   one now. */
 .make__io{
-  position:absolute; left:16px; right:16px; top:110px; bottom:70px;
-  --sq: min(246px, (var(--vh) * 1px - 215px) / 2);
-  display:flex; flex-direction:column; align-items:center;
-  justify-content:center; gap:35px;
+  position:absolute; left:82px; top:222px; width:434px; height:897px;
 }
-
 .drop{
-  position:relative;
-  width:var(--sq); height:var(--sq); flex:0 0 auto;
-  border:3px solid var(--fg);
+  position:absolute; left:0; width:434px; height:434px;
+  border:10px solid var(--fg);
   display:grid; place-items:center;
   overflow:hidden;
   transition: background-color .18s ease, color .18s ease;
 }
-/* the first box is the filled one, as on the sheet */
-.drop[data-kind="file"]{ background:var(--fg); color:var(--bg); }
+.drop[data-kind="file"]{ top:0;    background:var(--fg); color:var(--bg); }
+.drop[data-kind="live"]{ top:463px; }
 /* no hover on a touch screen — the fill is the press itself */
 .drop:active, .drop.is-armed{ background:var(--fg); color:var(--bg); }
-.drop__label{ font-size:24px; line-height:1; font-weight:900; position:relative; z-index:1; }
+.drop__label{ font-size:54px; line-height:1; font-weight:900; position:relative; z-index:1; }
 .drop__cam{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; transform:scaleX(-1);        /* mirrored, like a mirror */
@@ -445,20 +486,17 @@ a{ color:inherit; text-decoration:none; }
 .drop.is-busy{ pointer-events:none; }
 
 /* ══ live ════════════════════════════════════════════════════════════════════
-   Reference/Mobile_LiveImage · Mobile_LiveSound. Once the camera or the mic
-   is running the step stops being two boxes: the viewfinder takes the screen
-   with the thirds grid over it, or the mic draws what it is hearing, and one
-   round button underneath takes it. app.js puts is-live-img / is-live-snd on
-   the root when make.js says a stream has started. */
+   03_Live_image · 04_Live_Sound. Once the camera or the mic is running the
+   step stops being two boxes: the viewfinder takes a 434 x 732 frame with
+   the thirds over it, or the mic draws what it is hearing, and the one round
+   button underneath takes it. The button is in the same place either way. */
 
 .live__grid, .wave, .shoot{ display:none; }
 
-:root.is-live-img .make__io{
-  left:26px; right:26px; top:118px; bottom:228px; display:block;
-}
+:root.is-live-img .make__io{ top:222px; height:732px; }
 :root.is-live-img .drop[data-kind="file"]{ display:none; }
 :root.is-live-img .drop[data-kind="live"]{
-  width:100%; height:100%; border:0; background:none;
+  top:0; width:434px; height:732px;
 }
 :root.is-live-img .drop[data-kind="live"] .drop__label{ display:none; }
 
@@ -482,90 +520,99 @@ a{ color:inherit; text-decoration:none; }
    replaced element, so with width:auto it takes its width ATTRIBUTE as its
    intrinsic size and drops `right` as over-constrained — and the attribute is
    written from the box it measures, so the two would chase each other. */
+/* The sheet draws thirteen bars 20 wide on a 38 pitch, the row running from
+   x40. The canvas lays its bars out centred in a cell apiece, so it is the
+   cell that is 38 and the box that starts 9 earlier. */
 :root.is-live-snd .wave{
   display:block;
-  position:absolute; left:39px; width:312px; bottom:373px; height:164px;
+  position:absolute; left:31px; width:494px; top:379px; height:400px;
 }
 
-/* ring and disc, 90 across, as on both sheets */
+/* ring and disc, 146 across, as on both sheets */
 :root.is-live-img .shoot, :root.is-live-snd .shoot{
   display:grid; place-items:center;
-  position:absolute; left:50%; margin-left:-45px;
-  width:90px; height:90px; border-radius:50%;
-  border:3.5px solid var(--fg);
+  position:absolute; left:226px; bottom:185px;
+  width:146px; height:146px; border-radius:50%;
+  border:8px solid var(--fg);
 }
-:root.is-live-img .shoot{ bottom:107px; }
-:root.is-live-snd .shoot{ bottom:202px; }
 .shoot span{
-  display:block; width:70px; height:70px; border-radius:50%;
+  display:block; width:116px; height:116px; border-radius:50%;
   background:var(--fg);
   transition: transform .14s ease, background-color .35s ease;
 }
 .shoot:active span{ transform:scale(.88); }
 
+/* ── step 3 · what came out ─────────────────────────────────────────────────
+   03_Image_Final puts the picture it was read from small in the top left and
+   the piece itself large beside it. 04_Sound_Final has no picture, so the
+   piece takes the top and the same piece from straight above takes the
+   bottom, with the recording's own bar between them.
+
+   Both canvases are sized outright rather than stretched between left/right
+   and top/bottom. A <canvas> is a replaced element: its width and height
+   ATTRIBUTES are its intrinsic size, so with width:auto the box takes those
+   and the opposite offset is dropped as over-constrained — and since make.js
+   sets the attributes from the box it measures, the two feed each other and
+   the canvas doubles on every draw. */
 .page--make.is-result .make__title{ display:none; }
 .make__out{ position:absolute; inset:0; display:none; }
 .make__out.is-on{ display:block; }
 .make__io.is-off{ display:none; }
 
-/* what went in, on top — the photo cut into the bands each form came from,
-   or the sound drawn as circles */
-/* Both canvases are sized outright rather than stretched between left/right
-   and top/bottom. A <canvas> is a replaced element: its width and height
-   ATTRIBUTES are its intrinsic size, so with width:auto the box takes those
-   and the opposite offset is dropped as over-constrained — and since make.js
-   sets the attributes from the box it measures, the two feed each other and
-   the canvas doubles on every draw. The desktop sheet gives both a fixed
-   size, which is why it never ran into this. --vh is the stage height, so
-   the height below is still the whole of what is left. */
 .make__src{
-  position:absolute; left:16px; top:110px;
-  width:calc(100% - 32px); height:200px;
+  position:absolute; left:28px; top:216px; width:187px; height:315px;
 }
-/* and what came out, below it, taking everything that is left: 322 above it,
-   150 of buttons and bar below — 200 when a recording puts a scrub bar there
-   too, which app.js marks with has-scrub. */
 .make__canvas{
-  position:absolute; left:16px; top:322px;
-  width:calc(100% - 32px); height:calc(var(--vh) * 1px - 472px);
+  position:absolute; left:193px; top:393px; width:394px; height:702px;
   touch-action:none;                    /* drag to turn, not to scroll */
 }
-:root.has-scrub .make__canvas{ height:calc(var(--vh) * 1px - 522px); }
+/* a recording: the piece above, the view from overhead below */
+:root.has-scrub .make__canvas{ left:133px; top:160px;  width:316px; height:562px; }
+:root.has-scrub .make__src   { left:147px; top:617px;  width:278px; height:322px; }
 
 /* Scrubbing through a recording. A long take is hard to walk through a form
    at a time, so the bar lets you jump straight to a moment. */
 .scrub{
-  position:absolute; left:16px; right:16px; bottom:152px; height:34px;
+  position:absolute; left:32px; right:36px; bottom:293px; height:44px;
   touch-action:none;
 }
 .scrub[hidden]{ display:none; }
 .scrub__track{
-  position:absolute; left:0; right:0; top:13px; height:8px;
+  position:absolute; left:0; right:0; top:18px; height:8px;
   border-radius:4px; background:var(--fg);
 }
 .scrub__knob{
-  position:absolute; top:0; left:0; width:34px; height:34px;
-  margin-left:-17px; border-radius:50%;
+  position:absolute; top:0; left:0; width:44px; height:44px;
+  margin-left:-22px; border-radius:50%;
   background:var(--fg);
 }
 
+/* Two rings and a filled pill. The gap between the rings is fixed and the
+   pill is pushed to the far edge, so dropping the flat view — which a sound
+   has none of — closes the row up by itself. */
 .make__btns{
-  position:absolute; left:16px; right:16px; bottom:84px;
-  display:flex; align-items:center; justify-content:space-between;
+  position:absolute; left:28px; right:32px; bottom:193px; height:80px;
+  display:flex; align-items:center; gap:15px;
 }
 .rbtn{
-  width:56px; height:56px; border-radius:28px;
-  border:3px solid var(--fg); color:var(--fg);
+  width:80px; height:80px; border-radius:40px; flex:0 0 auto;
+  border:8px solid var(--fg); color:var(--fg);
   display:grid; place-items:center;
-  font-size:23px; line-height:1; font-weight:900;
+  font-size:40px; line-height:1; font-weight:900;
   transition: background-color .18s ease, color .18s ease, opacity .18s ease;
 }
 .rbtn[hidden]{ display:none; }          /* a sound has no flat view to show */
 .rbtn svg{ width:100%; height:100%; display:block; fill:currentColor; }
 .rbtn:active, .rbtn.is-on{ background:var(--fg); color:var(--bg); }
-.rbtn--cart{ width:140px; }
-.rbtn--again{ width:46px; height:46px; border-radius:23px; opacity:.55; }
-.rbtn[data-cart].is-added{ background:var(--fg); color:var(--bg); }
+.rbtn--cart{
+  margin-left:auto; width:311px; height:76px; border-radius:38px;
+  border:0; background:var(--fg); color:var(--bg);
+  font-size:42px;
+}
+.rbtn--cart:active{ opacity:.7; }
+/* The sheets have no start-again button; the header is the way back. */
+.rbtn--again{ display:none; }
+.rbtn[data-cart].is-added{ opacity:.6; }
 
 .i-pause{ display:none; }
 .rbtn.is-on .i-play{ display:none; }
