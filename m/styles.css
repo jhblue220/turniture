@@ -26,6 +26,10 @@
   --vh: 1311;      /* window height in artboard units     */
   --s : 1;         /* card scale — 1 is the sheet, less on a short handset */
   --old: 1.5333;   /* 598 / 390, for the two screens not yet redrawn */
+  /* How much shorter than the sheet this handset is. The sheets are 1311
+     tall and a phone showing the browser's own bars is a good deal less, so
+     a few places give their top edge back instead of shrinking by it. */
+  --short: max(0px, calc(1311px - var(--vh) * 1px));
 }
 /* the "Let's Make" step runs the palette the other way round, as in Tray_01 */
 :root.is-flip{ --fg: var(--c2); --bg: var(--c1); }
@@ -463,22 +467,37 @@ a{ color:inherit; text-decoration:none; }
 /* ── step 2 · what goes in ──────────────────────────────────────────────────
    Two 434 squares, 29 apart. The first is filled and the second outlined,
    which is the whole of the difference between dropping one in and taking
-   one now. */
+   one now.
+
+   434 is what the sheet draws, and the sheet is 1311 tall. A handset with
+   the browser's own bars showing is a good deal shorter than that, so the
+   pair is not pinned at 434: it takes what is left between the header and
+   the bottom margin the sheet leaves, and comes down together rather than
+   running off the bottom edge. At the sheet's own height the sum works out
+   at exactly 434 + 29 + 434, so nothing moves. Everything inside a square is
+   a share of its side for the same reason. */
 .make__io{
-  position:absolute; left:82px; top:222px; width:434px; height:897px;
+  position:absolute; left:82px; width:434px;
+  top:222px; height:calc(var(--vh) * 1px - 414px);   /* 222 over, 192 under */
+  --sq: min(434px, (var(--vh) * 1px - 443px) / 2);   /* 414, and the 29 gap */
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:29px;
 }
 .drop{
-  position:absolute; left:0; width:434px; height:434px;
-  border:10px solid var(--fg);
+  position:relative; flex:0 0 auto;
+  width:var(--sq); height:var(--sq);
+  border:calc(var(--sq) * 0.0230) solid var(--fg);   /* 10 of 434 */
   display:grid; place-items:center;
   overflow:hidden;
   transition: background-color .18s ease, color .18s ease;
 }
-.drop[data-kind="file"]{ top:0;    background:var(--fg); color:var(--bg); }
-.drop[data-kind="live"]{ top:463px; }
+.drop[data-kind="file"]{ background:var(--fg); color:var(--bg); }
 /* no hover on a touch screen — the fill is the press itself */
 .drop:active, .drop.is-armed{ background:var(--fg); color:var(--bg); }
-.drop__label{ font-size:54px; line-height:1; font-weight:900; position:relative; z-index:1; }
+.drop__label{
+  font-size:calc(var(--sq) * 0.1244);                /* 54 of 434 */
+  line-height:1; font-weight:900; position:relative; z-index:1;
+}
 .drop__cam{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; transform:scaleX(-1);        /* mirrored, like a mirror */
@@ -493,10 +512,13 @@ a{ color:inherit; text-decoration:none; }
 
 .live__grid, .wave, .shoot{ display:none; }
 
-:root.is-live-img .make__io{ top:222px; height:732px; }
+:root.is-live-img .make__io{
+  /* 222 over, and 357 under — which is the shutter and its margins. */
+  height:calc(var(--vh) * 1px - 579px);
+}
 :root.is-live-img .drop[data-kind="file"]{ display:none; }
 :root.is-live-img .drop[data-kind="live"]{
-  top:0; width:434px; height:732px;
+  width:434px; height:100%; border-width:10px;
 }
 :root.is-live-img .drop[data-kind="live"] .drop__label{ display:none; }
 
@@ -559,16 +581,42 @@ a{ color:inherit; text-decoration:none; }
 .make__out.is-on{ display:block; }
 .make__io.is-off{ display:none; }
 
+/* make.js fits the piece inside the canvas box at every angle, so what the
+   box is, the drawing is: a box that runs off the bottom edge or under the
+   button row takes the piece with it. The sheets draw their boxes on a 1311
+   artboard and a handset showing the browser's own bars is shorter than
+   that, so neither box is given a fixed height — each ends where the thing
+   below it begins, and at the sheet's height comes out where the sheet
+   drew it. */
 .make__src{
   position:absolute; left:28px; top:216px; width:187px; height:315px;
 }
+/* 393 over, and 293 under — the button row at 193 + 80, and 20 clear of it.
+   On a short handset the piece would be left very small, so the box takes
+   back up to 160 of its own headroom first; past that it does shrink. The
+   160 stops it reaching the header, and the photo beside it is only 22 wide
+   where the two bands cross. */
 .make__canvas{
-  position:absolute; left:193px; top:393px; width:394px; height:702px;
+  position:absolute; left:193px; width:394px;
+  --rise: min(var(--short) * 0.6, 160px);
+  top:calc(393px - var(--rise));
+  height:calc(var(--vh) * 1px - 686px + var(--rise));
   touch-action:none;                    /* drag to turn, not to scroll */
 }
-/* a recording: the piece above, the view from overhead below */
-:root.has-scrub .make__canvas{ left:133px; top:160px;  width:316px; height:562px; }
-:root.has-scrub .make__src   { left:147px; top:617px;  width:278px; height:322px; }
+
+/* A recording: the piece above, the view from overhead below, the two
+   sharing the band between the header and the scrub bar in the proportion
+   04_Sound_Final draws them (450 and 322, with 7 between). 532 is the band's
+   own margins — 160 above and 372 below. */
+:root.has-scrub .make__canvas{
+  left:133px; top:160px; width:316px;
+  height:calc((var(--vh) * 1px - 532px) * 0.583);
+}
+:root.has-scrub .make__src{
+  left:147px; width:278px;
+  top:calc(160px + (var(--vh) * 1px - 532px) * 0.592);
+  height:calc((var(--vh) * 1px - 532px) * 0.408);
+}
 
 /* Scrubbing through a recording. A long take is hard to walk through a form
    at a time, so the bar lets you jump straight to a moment. */
