@@ -26,10 +26,6 @@
   --vh: 1311;      /* window height in artboard units     */
   --s : 1;         /* card scale — 1 is the sheet, less on a short handset */
   --old: 1.5333;   /* 598 / 390, for the two screens not yet redrawn */
-  /* How much shorter than the sheet this handset is. The sheets are 1311
-     tall and a phone showing the browser's own bars is a good deal less, so
-     a few places give their top edge back instead of shrinking by it. */
-  --short: max(0px, calc(1311px - var(--vh) * 1px));
 }
 /* the "Let's Make" step runs the palette the other way round, as in Tray_01 */
 :root.is-flip{ --fg: var(--c2); --bg: var(--c1); }
@@ -91,13 +87,15 @@ a{ color:inherit; text-decoration:none; }
 }
 
 /* ── header ──────────────────────────────────────────────────────────────
-   The wordmark top left, the five buttons top right, all on one band. Every
-   number is off the sheets: the wordmark 188 wide at x27, and the buttons
-   44 square with their glyphs centred on y117. The three on the left are
+   The wordmark top left, the five buttons top right, all on one band. The
+   wordmark is 188 wide at x27 and the buttons are 44 square, both off the
+   sheets. The band sits higher than the sheets draw it: 102 was measured on
+   a 1311 artboard and on a handset, under the status bar, it reads as a
+   hole. 55 is an ordinary header margin at this scale. The three on the left are
    the ways in and the palette; the two on the right are pages. */
 
 .logo{
-  position:absolute; left:27px; top:102px; z-index:11;
+  position:absolute; left:27px; top:55px; z-index:11;
   width:188px; height:27.5px;               /* 369 x 54, to the same ratio */
   display:block;
   color:var(--fg);
@@ -105,7 +103,7 @@ a{ color:inherit; text-decoration:none; }
 }
 .logo svg{ display:block; width:100%; height:100%; }
 
-.nav{ position:absolute; left:0; top:95px; z-index:11; height:44px; }
+.nav{ position:absolute; left:0; top:48px; z-index:11; height:44px; }
 
 /* The box is the hit target and what the option bar box fills; the glyph is
    centred in it at the size it was drawn. */
@@ -130,12 +128,6 @@ a{ color:inherit; text-decoration:none; }
 
 /* with the box behind it the glyph reads as a cut-out */
 .nav__b.is-on{ color:var(--bg); }
-
-/* Over the film there is no telling what is underneath, so the header goes
-   light rather than taking a page colour that may sink into the picture.
-   One swipe down there is a page colour again, and it takes that.        */
-:root.is-home:not(.is-down) .logo,
-:root.is-home:not(.is-down) .nav__b{ color:#D9D9D9; }
 
 /* ══ option bar box ══════════════════════════════════════════════════════════
    With no pointer to follow there is nothing to chase: it parks on whichever
@@ -197,7 +189,6 @@ a{ color:inherit; text-decoration:none; }
   animation: nudge 2.1s ease-in-out infinite;
   transition: opacity .3s ease, visibility 0s linear .3s, color .35s ease;
 }
-:root.is-home:not(.is-down) .scroller{ color:#D9D9D9; }
 .scroller__t{ font-size:26px; line-height:1; font-weight:900; }
 .scroller svg{ display:block; width:89px; height:48px; }
 :root.is-down .scroller{ opacity:0; visibility:hidden; pointer-events:none; }
@@ -591,37 +582,35 @@ a{ color:inherit; text-decoration:none; }
 .make__src{
   position:absolute; left:28px; top:216px; width:187px; height:315px;
 }
-/* 393 over, and 293 under — the button row at 193 + 80, and 20 clear of it.
-   On a short handset the piece would be left very small, so the box takes
-   back up to 160 of its own headroom first; past that it does shrink. The
-   160 stops it reaching the header, and the photo beside it is only 22 wide
-   where the two bands cross. */
+/* 393 over, and 188 under — the button row at 88 + 80, and 20 clear of it.
+   The room the buttons gave up by moving down is room the piece gets, so
+   it sits lower and comes out bigger than the sheet rather than being
+   pulled up towards the header. */
 .make__canvas{
-  position:absolute; left:193px; width:394px;
-  --rise: min(var(--short) * 0.6, 160px);
-  top:calc(393px - var(--rise));
-  height:calc(var(--vh) * 1px - 686px + var(--rise));
+  position:absolute; left:193px; top:393px; width:394px;
+  height:calc(var(--vh) * 1px - 581px);
   touch-action:none;                    /* drag to turn, not to scroll */
 }
 
 /* A recording: the piece above, the view from overhead below, the two
    sharing the band between the header and the scrub bar in the proportion
-   04_Sound_Final draws them (450 and 322, with 7 between). 532 is the band's
-   own margins — 160 above and 372 below. */
+   04_Sound_Final draws them (450 and 322, with 7 between). 427 is the
+   band's own margins — 160 above and 267 below, which is the scrub bar
+   where it now sits. */
 :root.has-scrub .make__canvas{
   left:133px; top:160px; width:316px;
-  height:calc((var(--vh) * 1px - 532px) * 0.583);
+  height:calc((var(--vh) * 1px - 427px) * 0.583);
 }
 :root.has-scrub .make__src{
   left:147px; width:278px;
-  top:calc(160px + (var(--vh) * 1px - 532px) * 0.592);
-  height:calc((var(--vh) * 1px - 532px) * 0.408);
+  top:calc(160px + (var(--vh) * 1px - 427px) * 0.592);
+  height:calc((var(--vh) * 1px - 427px) * 0.408);
 }
 
 /* Scrubbing through a recording. A long take is hard to walk through a form
    at a time, so the bar lets you jump straight to a moment. */
 .scrub{
-  position:absolute; left:32px; right:36px; bottom:293px; height:44px;
+  position:absolute; left:32px; right:36px; bottom:188px; height:44px;
   touch-action:none;
 }
 .scrub[hidden]{ display:none; }
@@ -639,7 +628,7 @@ a{ color:inherit; text-decoration:none; }
    pill is pushed to the far edge, so dropping the flat view — which a sound
    has none of — closes the row up by itself. */
 .make__btns{
-  position:absolute; left:28px; right:32px; bottom:193px; height:80px;
+  position:absolute; left:28px; right:32px; bottom:88px; height:80px;
   display:flex; align-items:center; gap:15px;
 }
 .rbtn{

@@ -467,11 +467,34 @@ function paintSwatches(){
   });
 }
 
+/* The bars a phone browser puts above and below the page take their colour
+   from this one meta tag, and a fixed value in it leaves them a different
+   colour from the page the moment the palette moves — which is what the
+   status bar and the toolbar were doing.
+
+   --bg is read back off the root rather than looked up in PALETTE: the
+   input step of Let's Make runs the pair the other way round and the result
+   step turns it back (make.js, `dressResult`), so the answer is whatever
+   the stylesheet has arrived at, not whatever was picked. Which is also why
+   the root's class is watched — that flip happens inside make.js and this
+   file is not told about it. */
+const chromeMeta = document.querySelector('meta[name="theme-color"]');
+
+function paintChrome(){
+  const bg = getComputedStyle(document.documentElement)
+               .getPropertyValue('--bg').trim();
+  if (bg) chromeMeta.setAttribute('content', bg);
+}
+
+new MutationObserver(paintChrome).observe(document.documentElement,
+  { attributes: true, attributeFilter: ['class'] });
+
 function applyColors(){
   const r = document.documentElement.style;
   r.setProperty('--c1', PALETTE[slots[1]]);
   r.setProperty('--c2', PALETTE[slots[2]]);
   paintSwatches();
+  paintChrome();
   Make.redraw();        // canvas pixels do not follow CSS variables
   Checkout.redraw();
 }
