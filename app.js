@@ -463,6 +463,42 @@ document.getElementById('colorsClose').addEventListener('click', e => {
 /* clicking anywhere else closes the panel too */
 document.addEventListener('click', () => { if (colorsOpen) closeColors(); });
 
+/* ── live ───────────────────────────────────────────────────────────────────
+   Web_LiveImage · Web_LiveSound. The camera and the mic used to run inside
+   the little box they were armed from. make.js tells us when a stream
+   starts and stops; the root takes a class the stylesheet lays the whole
+   page out from, and the round button underneath is simply the second press
+   on that box — make.js already knows what that means, so it is handed
+   straight on.
+
+   The bars and the clock are `live.js`, shared with the phone build. */
+
+const liveBox = document.querySelector('.drop[data-kind="live"]');
+const shootEl = document.querySelector('[data-shoot]');
+const waveEl  = document.querySelector('[data-wave]');
+const clockEl = document.querySelector('[data-clock]');
+
+const BARS = 37, BAR_MS = 110;          // the row Web_LiveSound draws
+let ticking = null;
+
+shootEl.addEventListener('click', e => { e.stopPropagation(); liveBox.click(); });
+
+Make.onLive((what, stream) => {
+  const r = document.documentElement.classList;
+  r.toggle('is-live-img', what === 'images');
+  r.toggle('is-live-snd', what === 'sounds');
+
+  if (what === 'sounds') {
+    Live.start(waveEl, stream, { bars: BARS, barMs: BAR_MS });
+    clockEl.textContent = '00:00:00';
+    ticking = setInterval(() => { clockEl.textContent = Live.clock(); }, 50);
+  } else {
+    Live.stop();
+    clearInterval(ticking);
+    ticking = null;
+  }
+});
+
 /* ── cursor ─────────────────────────────────────────────────────────────── */
 
 let cx = innerWidth / 2, cy = innerHeight / 2, small = false;
@@ -480,7 +516,8 @@ addEventListener('mousemove', e => {
 });
 
 const HOT = '.item, .nav__tab, .nav__icon, .swatch, .colors__close, .arrow, .logo,'
-          + '.avatar, .pick__b, .pbtn, .pill, .rnd, .piece, .piece__x, .cin, .csel, .ccheck';
+          + '.avatar, .pick__b, .pbtn, .pill, .rnd, .piece, .piece__x, .cin, .csel, .ccheck,'
+          + '.shoot, .rbtn';
 document.addEventListener('mouseover', e => {
   const next = !!e.target.closest(HOT);
   if (next !== small) { small = next; cursor.classList.toggle('is-small', small); }

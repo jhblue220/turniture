@@ -423,6 +423,70 @@ a{ color:inherit; text-decoration:none; }
 }
 .drop.is-busy{ pointer-events:none; }
 
+/* ══ live ════════════════════════════════════════════════════════════════════
+   Web_LiveImage · Web_LiveSound. Pressing Live Image or Live Sound used to
+   start the camera inside the little box it was pressed in. It takes the
+   page instead: the viewfinder fills the middle, or the mic draws what it
+   is hearing with the clock under it, and the round button takes it. The
+   step keeps the inverted palette it already runs (make.js, `dressResult`),
+   which is the pair the two sheets are drawn in.
+
+   make.js tells app.js a stream has started and app.js puts the class on
+   the root; nothing in the renderer knows about any of this. */
+
+.wave, .clock, .shoot{ display:none; }
+/* the sheets leave the heading off while a take is running */
+:root.is-live-img .make__title,
+:root.is-live-snd .make__title{ display:none; }
+
+/* ── the camera ─────────────────────────────────────────────────────────── */
+:root.is-live-img .make__io{
+  left:241px; top:127px; width:1438px; height:783px; display:block;
+}
+:root.is-live-img .make__or,
+:root.is-live-img .drop[data-kind="file"]{ display:none; }
+:root.is-live-img .drop[data-kind="live"]{ width:100%; height:100%; }
+:root.is-live-img .drop[data-kind="live"] .drop__label{ display:none; }
+/* the box fills on hover to say it can be pressed; at this size that is the
+   whole screen going one colour, so it is left alone */
+:root.is-live-img .drop:hover{ background:none; color:var(--fg); }
+
+/* ── the microphone ─────────────────────────────────────────────────────── */
+:root.is-live-snd .make__io{ display:none; }
+/* Sized outright, not stretched between left and right: a <canvas> is a
+   replaced element, so with width:auto it takes its width ATTRIBUTE as its
+   intrinsic size and drops `right` as over-constrained — and the attribute
+   is written from the box it measures, so the two would chase each other.
+   37 cells of 41 across, which is the row the sheet draws. */
+:root.is-live-snd .wave{
+  display:block;
+  position:absolute; left:202px; top:288px; width:1517px; height:409px;
+}
+:root.is-live-snd .clock{
+  display:block;
+  position:absolute; left:0; right:0; top:771px;
+  text-align:center;
+  font-size:48.5px; line-height:1; font-weight:900;
+  font-variant-numeric:tabular-nums;   /* so the hundredths stop jittering */
+}
+
+/* ── the button that takes it ───────────────────────────────────────────── */
+:root.is-live-img .shoot, :root.is-live-snd .shoot{
+  display:grid; place-items:center;
+  position:absolute; left:904px;
+  width:112px; height:112px; border-radius:50%;
+  border:8px solid var(--fg);
+}
+:root.is-live-img .shoot{ top:934px; }
+:root.is-live-snd .shoot{ top:856px; }
+.shoot span{
+  display:block; width:86px; height:86px; border-radius:50%;
+  background:var(--fg);
+  transition: transform .14s ease, background-color .35s ease;
+}
+.shoot:hover span { transform:scale(1.07); }
+.shoot:active span{ transform:scale(.9); }
+
 .page--make.is-result .make__title{ display:none; }
 .make__out{ position:absolute; inset:0; display:none; }
 .make__out.is-on{ display:block; }

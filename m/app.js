@@ -557,78 +557,15 @@ Make.onLive((what, stream) => {
   const r = document.documentElement.classList;
   r.toggle('is-live-img', what === 'images');
   r.toggle('is-live-snd', what === 'sounds');
-  what === 'sounds' ? startWave(stream) : stopWave();
+  what === 'sounds'
+    ? Live.start(waveEl, stream, { bars: BARS, barMs: BAR_MS })
+    : Live.stop();
 });
 
-/* What the mic is hearing, a bar at a time. The bars fill in from the left as
-   the take runs and then scroll, so the row is a picture of how long you have
-   been going as much as of how loud. */
-
+/* 04_Live_Sound draws thirteen bars; the desktop sheet draws thirty-seven.
+   The rest of the meter is `live.js`, shared with the desktop build — the
+   phone's sheet has no clock, so none is read off it. */
 const BARS = 13, BAR_MS = 130;
-let ac = null, analyser = null, buf = null, waveRaf = null;
-let levels = [], lastBar = 0;
-
-function startWave(stream){
-  stopWave();
-  try {
-    ac = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = ac.createAnalyser();
-    analyser.fftSize = 1024;
-    buf = new Uint8Array(analyser.fftSize);
-    ac.createMediaStreamSource(stream).connect(analyser);
-  } catch (err) {
-    console.warn('[m] no meter for this take:', err.name);
-    return;
-  }
-  levels = []; lastBar = 0;
-  waveRaf = requestAnimationFrame(drawWave);
-}
-
-function stopWave(){
-  if (waveRaf) cancelAnimationFrame(waveRaf);
-  waveRaf = null;
-  if (ac) ac.close();
-  ac = analyser = buf = null;
-  levels = [];
-}
-
-/* root mean square of the window, pulled up so ordinary speech uses most of
-   the height rather than a sliver of it */
-function loudness(){
-  analyser.getByteTimeDomainData(buf);
-  let sum = 0;
-  for (let i = 0; i < buf.length; i++) { const d = (buf[i] - 128) / 128; sum += d * d; }
-  return Math.min(1, Math.sqrt(sum / buf.length) * 3.4);
-}
-
-function drawWave(now){
-  waveRaf = requestAnimationFrame(drawWave);
-  if (!analyser) return;
-
-  if (now - lastBar >= BAR_MS) {
-    lastBar = now;
-    levels.push(loudness());
-    if (levels.length > BARS) levels.shift();
-  }
-
-  const dpr = Math.min(2, devicePixelRatio || 1);
-  const box = waveEl.getBoundingClientRect();
-  if (!box.width) return;
-  const w = Math.round(box.width * dpr), h = Math.round(box.height * dpr);
-  if (waveEl.width !== w || waveEl.height !== h) { waveEl.width = w; waveEl.height = h; }
-
-  const g = waveEl.getContext('2d');
-  g.clearRect(0, 0, w, h);
-  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg').trim();
-
-  // the row is laid out for the full count, so the bars stand still as they
-  // come in rather than spreading out again on every frame
-  const pitch = w / BARS, bw = pitch * 0.53;
-  levels.forEach((v, i) => {
-    const bh = Math.max(h * 0.06, h * (0.1 + 0.9 * v));
-    g.fillRect(i * pitch + (pitch - bw) / 2, (h - bh) / 2, bw, bh);
-  });
-}
 
 /* ── go ─────────────────────────────────────────────────────────────────── */
 

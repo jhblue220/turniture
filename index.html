@@ -116,6 +116,16 @@
         </button>
       </div>
 
+      <!-- Once the camera or the mic is running the step stops being two
+           boxes and becomes the whole page (Web_LiveImage · Web_LiveSound):
+           the viewfinder takes the middle, or the mic draws what it is
+           hearing with the clock under it, and one round button takes it.
+           app.js puts is-live-img / is-live-snd on the root when make.js
+           says a stream has started. -->
+      <canvas class="wave" data-wave></canvas>
+      <p class="clock" data-clock>00:00:00</p>
+      <button class="shoot" data-shoot aria-label="Take it"><span></span></button>
+
       <!-- step 3 — the result: what went in on the left, what came out on the right -->
       <div class="make__out" data-step="out">
         <canvas class="make__src" data-src></canvas>
@@ -280,6 +290,7 @@
 <script src="shapes.js"></script>
 <script src="intro.js"></script>
 <script src="cart.js"></script>
+<script src="live.js"></script>
 <script src="make.js"></script>
 <script src="profile.js"></script>
 <script src="checkout.js"></script>
