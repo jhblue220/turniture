@@ -6,6 +6,24 @@
      break every coordinate the layout is authored in. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#313335">
+
+<!-- The other half of the test in ../index.html — word for word the same, so
+     the two can never bounce a window between them. This build is drawn on a
+     598-wide artboard and is not scaled up past it, so on a desktop it would
+     sit as a narrow column in the middle of the screen. A window that is
+     plainly a desktop goes back rather than being shown that. ?mobile=1 stays
+     here, for looking at this build on a big screen. -->
+<script>
+(function(){
+  try{
+    if (location.search.indexOf('mobile=1') >= 0) return;
+    var coarse  = matchMedia('(pointer: coarse)').matches;
+    var handset = (coarse && innerWidth <= 1024) || innerWidth <= 620;
+    if (!handset) location.replace('../index.html' + location.search + location.hash);
+  }catch(e){}
+})();
+</script>
+
 <title>TURNitURE — Turn It Yours</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
