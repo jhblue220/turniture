@@ -60,6 +60,20 @@
          autoplay loop muted playsinline preload="auto"></video>
 </div>
 
+<!-- ── the scroll film ────────────────────────────────────
+     One screen below the title sequence, and the last of the three the main
+     page is deep. Laid against the window like the opening film, for the same
+     reason: it is meant to meet every edge, so `object-fit:cover` crops it to
+     whatever shape the window is rather than letterboxing it in the artboard.
+
+     It has no `src` here — `film-scenes.js` names the file and `film.js` sets
+     it, so there is one place to change it. No autoplay and no loop either:
+     the wheel is the only thing that moves it. -->
+<div class="film" data-root="" aria-hidden="true">
+  <video class="film__v" muted playsinline preload="auto"></video>
+  <div class="film__g" data-film-g></div>
+</div>
+
 <div class="viewport">
   <div class="stage" id="stage">
 
@@ -78,8 +92,8 @@
     </header>
 
     <!-- ── main page ────────────────────────────────────── -->
-    <!-- The main page is two screens deep: the film, and one scroll below it
-         the title sequence that used to be here on its own. -->
+    <!-- The main page is three screens deep: the opening film, the title
+         sequence one scroll below it, and the scroll film below that. -->
     <section class="page page--home is-on" data-page="home">
       <button class="scroller" id="scroller" aria-label="Scroll down to the title">
         <svg viewBox="0 0 48 28" aria-hidden="true">
@@ -311,6 +325,8 @@
 <script src="make.js"></script>
 <script src="profile.js"></script>
 <script src="checkout.js"></script>
+<script src="film-scenes.js"></script>
+<script src="film.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

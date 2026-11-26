@@ -37,8 +37,9 @@ button{ font:inherit; color:inherit; background:none; border:0; }
 a{ color:inherit; text-decoration:none; }
 
 /* ══ the opening film ════════════════════════════════════════════════════════
-   The main page is two screens deep: the film, and the title sequence one
-   scroll below it (Reference/Main_Video). The film is laid against the window
+   The main page is three screens deep: this film, the title sequence one
+   scroll below it (Reference/Main_Video), and the scroll film below that.
+   This one is laid against the window
    and not against the artboard — the stage is a fixed 1920 x 1080 box that
    letterboxes in a window of another shape, and the film is meant to meet
    every edge — so it is cropped to the window's own proportions instead. */
@@ -61,6 +62,62 @@ a{ color:inherit; text-decoration:none; }
 }
 /* scrolled down — the film leaves upwards and the type comes up after it */
 :root.is-down .hero{ transform:translateY(-100%); }
+
+/* ══ the scroll film ═════════════════════════════════════════════════════════
+   The third screen. It waits one below the title sequence and rides up the
+   same way, and like the opening film it is laid against the window rather
+   than against the artboard, so it meets every edge whatever shape that
+   window is. What it shows is in `film-scenes.js`; `film.js` turns the wheel
+   into a second of it. */
+.film{
+  position:fixed; inset:0; z-index:0;
+  overflow:hidden;
+  background:var(--bg);
+  opacity:0; visibility:hidden;
+  transform:translateY(100%);
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s linear .4s;
+}
+:root.is-film .film{
+  opacity:1; visibility:visible;
+  transform:translateY(0);
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s;
+}
+.film__v{
+  display:block; width:100%; height:100%;
+  object-fit:cover;                         /* cropped to the window, like .hero__v */
+}
+.film__g{ position:absolute; inset:0; pointer-events:none; }
+
+/* One rectangle on one piece of furniture. Nothing but a black edge and the
+   wording above it — no corner, no shadow, no fill. It is placed and sized in
+   real pixels by `film.js`, because where it belongs is a share of the video
+   frame and only the script knows where that frame landed.
+
+   The three numbers here were read off the reference stills in `Video/` and
+   scaled to the film's own 1920: a 13px edge, 50px type, sitting 3px clear of
+   the rectangle and flush with its left side. They carry `--k`, the artboard
+   scale, so on a 1920 x 1080 window they come out exactly as drawn.
+
+   The type is 500, not the 900 the rest of the site is set in — the reference
+   is plainly a lighter weight, and at this size a Black would read as a
+   caption on the film rather than a note laid over it. The -4% tracking is
+   inherited, and is what brings the line to the width it was drawn at. */
+.fmark{
+  position:absolute; left:0; top:0;
+  border:calc(13px * var(--k)) solid #000;
+  transform-origin:50% 50%;
+  opacity:0;
+  will-change:transform, opacity;
+}
+.fmark__t{
+  position:absolute; left:0; bottom:100%;
+  margin-bottom:calc(3px * var(--k));
+  display:block; white-space:nowrap;
+  color:#000;
+  font-size:calc(50px * var(--k)); line-height:1; font-weight:500;
+}
 
 .viewport{
   position:fixed; inset:0; z-index:1;       /* over the film */
@@ -141,6 +198,8 @@ a{ color:inherit; text-decoration:none; }
   transition: transform .78s cubic-bezier(.62,0,.2,1);
 }
 :root.is-down .page--home .intro{ transform:translateY(0); }
+/* and one more scroll takes it up and out, to leave the film the screen */
+:root.is-film .page--home .intro{ transform:translateY(-1080px); }
 
 /* the one hint that there is something under the film */
 .scroller{

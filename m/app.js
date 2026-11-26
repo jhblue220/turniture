@@ -345,25 +345,39 @@ function show(next, making){
 
 const heroVid  = document.querySelector('.hero__v');
 const scroller = document.getElementById('scroller');
-let deep = false;                       // is the title sequence the one on screen?
+Film.mount();
+
+/* 0 the opening film · 1 the title sequence · 2 the scroll film. The third is
+   only there if its file is: with `Video/1.mp4` missing, `Film.ok()` goes
+   false and the main page is the two screens it always was. */
+let deep = 0;
+const floor = () => (Film.ok() ? 2 : 1);
 
 /* iOS refuses to start a film in Low Power Mode, and nothing here leans on
    it, so the refusal is let go of. */
 const playFilm = on => { on ? heroVid.play().catch(() => {}) : heroVid.pause(); };
 
-function depth(next){
-  if (next === deep) return;
-  deep = next;
-  document.documentElement.classList.toggle('is-down', deep);
-  deep ? Intro.start() : Intro.stop();
-  playFilm(!deep);
+function go(n){
+  if (n === deep) return;
+  const was = deep;
+  deep = n;
+  const r = document.documentElement.classList;
+  r.toggle('is-down', deep >= 1);
+  r.toggle('is-film', deep === 2);
+  deep === 1 ? Intro.start() : Intro.stop();
+  playFilm(deep === 0);
+  if (deep === 2) Film.enter(); else if (was === 2) Film.leave();
 }
+
+/* `true` is one screen deeper, `false` one back. */
+const depth = next => go(Math.max(0, Math.min(floor(), deep + (next ? 1 : -1))));
 
 /* arriving at the main page always starts at the film again */
 function atHome(on){
   const r = document.documentElement.classList;
   r.toggle('is-home', on);
-  deep = false; r.remove('is-down');
+  if (deep === 2) Film.leave();
+  deep = 0; r.remove('is-down'); r.remove('is-film');
   Intro.stop();
   playFilm(on);
 }
@@ -372,19 +386,33 @@ scroller.addEventListener('click', e => { e.stopPropagation(); depth(true); });
 
 /* A flick of the thumb, read off the window — the picker's own swipe is on
    the card strip and never sees these. The threshold is in real pixels, so
-   it is the same flick whatever the artboard is scaled to. */
+   it is the same flick whatever the artboard is scaled to.
+
+   On the film it stops being a flick and becomes a drag: the thumb is what
+   runs the picture, so every pixel of it is read as it is made rather than
+   waited on and then thrown away. */
 let filmY = null;
 addEventListener('touchstart', e => { filmY = e.touches[0].clientY; }, { passive: true });
 addEventListener('touchmove', e => {
   if (filmY === null || page !== 'home') return;
-  const dy = filmY - e.touches[0].clientY;
+  const y = e.touches[0].clientY, dy = filmY - y;
+  if (deep === 2){
+    filmY = y;
+    if (Film.scroll(dy * 2.4) === 'top') go(1);
+    return;
+  }
   if (Math.abs(dy) > 40) { depth(dy > 0); filmY = null; }
 }, { passive: true });
 addEventListener('touchend', () => { filmY = null; });
 
 /* and a wheel, for the handful of desktop browsers that land here */
 addEventListener('wheel', e => {
-  if (page !== 'home' || Math.abs(e.deltaY) < 2) return;
+  if (page !== 'home') return;
+  if (deep === 2){
+    if (Film.scroll(e.deltaY) === 'top') go(1);
+    return;
+  }
+  if (Math.abs(e.deltaY) < 2) return;
   depth(e.deltaY > 0);
 }, { passive: true });
 

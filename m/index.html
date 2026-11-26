@@ -45,6 +45,16 @@
          autoplay loop muted playsinline preload="auto"></video>
 </div>
 
+<!-- ── the scroll film ────────────────────────────────────
+     The third screen, one swipe below the title sequence. Same two files as
+     the desktop build — the thumb takes the wheel's place. The file is named
+     once, in `film-scenes.js`, from the site root; data-root is how this
+     build reaches back out of /m for it. -->
+<div class="film" data-root="../" aria-hidden="true">
+  <video class="film__v" muted playsinline preload="auto"></video>
+  <div class="film__g" data-film-g></div>
+</div>
+
 <div class="viewport">
   <div class="stage" id="stage">
 
@@ -305,6 +315,8 @@
 <script src="../make.js"></script>
 <script src="../profile.js"></script>
 <script src="../checkout.js"></script>
+<script src="../film-scenes.js"></script>
+<script src="../film.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

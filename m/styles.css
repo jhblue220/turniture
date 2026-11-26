@@ -51,8 +51,9 @@ button{ font:inherit; color:inherit; background:none; border:0; }
 a{ color:inherit; text-decoration:none; }
 
 /* ══ the opening film ════════════════════════════════════════════════════════
-   The main page is two screens deep, as on the desktop build: the film, and
-   the title sequence one swipe below it. The film is laid against the window
+   The main page is three screens deep, as on the desktop build: this film,
+   the title sequence one swipe below it, and the scroll film below that.
+   This one is laid against the window
    rather than against the artboard, and cropped to the handset's own shape. */
 .hero{
   position:fixed; inset:0; z-index:0;
@@ -69,6 +70,54 @@ a{ color:inherit; text-decoration:none; }
 }
 .hero__v{ display:block; width:100%; height:100%; object-fit:cover; }
 :root.is-down .hero{ transform:translateY(-100%); }
+
+/* ══ the scroll film ═════════════════════════════════════════════════════════
+   The third screen, waiting one below the title sequence and riding up the
+   same way. Against the window like the opening film, so it fills the handset
+   whatever shape it is. `../film-scenes.js` says what it shows. */
+.film{
+  position:fixed; inset:0; z-index:0;
+  overflow:hidden;
+  background:var(--bg);
+  opacity:0; visibility:hidden;
+  transform:translateY(100%);
+  transition: transform .72s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s linear .4s;
+}
+:root.is-film .film{
+  opacity:1; visibility:visible;
+  transform:translateY(0);
+  transition: transform .72s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s;
+}
+.film__v{ display:block; width:100%; height:100%; object-fit:cover; }
+.film__g{ position:absolute; inset:0; pointer-events:none; }
+
+/* A black edge on one piece of furniture, and the wording above it. Nothing
+   else — no corner, no shadow, no fill. Placed in real pixels by film.js,
+   because only it knows where the video frame landed on the glass; the line
+   and the type carry --k so they read the same weight as the rest of the
+   build.
+
+   The desktop sheet carries the reference's own numbers against a 1920 frame
+   (13px edge, 50px type). Those would come out hair-thin here, because this
+   artboard is 598 wide, so they are set against this one instead: the same
+   drawing, read at arm's length rather than across a desk. The type is 500
+   like the reference, not the 900 the rest of the build is set in. */
+.fmark{
+  position:absolute; left:0; top:0;
+  border:calc(8px * var(--k)) solid #000;
+  transform-origin:50% 50%;
+  opacity:0;
+  will-change:transform, opacity;
+}
+.fmark__t{
+  position:absolute; left:0; bottom:100%;
+  margin-bottom:calc(3px * var(--k));
+  display:block; white-space:nowrap;
+  color:#000;
+  font-size:calc(30px * var(--k)); line-height:1; font-weight:500;
+}
 
 .viewport{
   position:fixed; inset:0; z-index:1;       /* over the film */
@@ -178,6 +227,10 @@ a{ color:inherit; text-decoration:none; }
   transition: transform .72s cubic-bezier(.62,0,.2,1);
 }
 :root.is-down .page--home .intro{ transform:translateY(0) scale(var(--old)); }
+/* and one more swipe takes it up and out, to leave the film the screen */
+:root.is-film .page--home .intro{
+  transform:translateY(calc(var(--vh) * -1px)) scale(var(--old));
+}
 
 /* ── the one hint that there is something under the film ─────────────────
    Main.svg: the word with the chevron under it, the pair sitting 53 off the
