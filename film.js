@@ -20,6 +20,11 @@
    on its last frame — `tail` in the settings — and the final beat plays out
    on the still. It reads as the camera coming to rest, which is what it is.
 
+   That still is also where the thing ends: the room goes half dark and one
+   line is left on it, in colour slot 1. Slot 1 is the colour the viewer
+   picked, so the last word is in the page's own colour rather than one of
+   the film's — the only part of this screen that answers to the palette.
+
    ── why the rectangles are measured against the video and not the window ──
    The film is laid against the window like the opening one, so it is cropped
    by `object-fit:cover` to whatever shape the window is. A rectangle given in
@@ -36,7 +41,7 @@ const Film = (() => {
   const FALL = 0.26;      // and to leave
 
   let el, vid, gfx;
-  let marks = [];
+  let marks = [], veil = null, endl = null;
   let broken = false, built = false, on = false;
   let dur = 0, vt = 0, last = 0, frame = null;
   let crop = { x: 0, y: 0, w: 0, h: 0 };
@@ -109,16 +114,42 @@ const Film = (() => {
         marks.push(m);
       }
     }
+
+    /* The dark and the line go on last, so they sit over the rectangles
+       without anything having to be told about stacking. */
+    veil = endl = null;
+    if (S.end){
+      veil = document.createElement('div');
+      veil.className = 'fveil';
+      endl = document.createElement('div');
+      endl.className = 'fend';
+      endl.textContent = S.end.text;
+      gfx.appendChild(veil);
+      gfx.appendChild(endl);
+    }
     built = true;
   }
 
   function paint(t){
+    /* How far into the dark we are. The rectangles go out with it rather
+       than sitting black-on-black underneath it, and the line comes up a
+       beat behind so the room is already dimming when it arrives. */
+    const E  = S.end;
+    const vq = E ? ease(cl((t - E.in) / E.over)) : 0;
+
+    if (veil) veil.style.opacity = vq * (E.veil ?? 0.5);
+    if (endl){
+      const w = ease(cl((t - E.in - (E.wait || 0)) / (E.over * 1.3)));
+      endl.style.opacity   = w;
+      endl.style.transform = `translate(-50%, calc(-50% + ${(1 - w) * 18}px))`;
+    }
+
     for (const m of marks){
       const sh   = m.shot;
       const a    = ease(cl((t - m.t0) / RISE));
-      /* `out: null` is the last word on the screen — it stays up. */
+      /* `out: null` runs to the end of the film, where the dark takes it. */
       const gone = sh.out == null ? 1 : 1 - cl((t - sh.out) / FALL);
-      const v    = Math.min(a, Math.max(0, gone));
+      const v    = Math.min(a, Math.max(0, gone)) * (1 - vq);
 
       if (v <= 0){ m.el.style.opacity = '0'; continue; }
 

@@ -52,8 +52,25 @@ const FILM_SCENES = {
 
   /* The last frame is held this long, in seconds, after the film runs out.
      The rise to the view from above only lands at 5.85 and five rectangles
-     have to arrive one after another, so they finish on the still. */
-  tail: 1.4,
+     have to arrive one after another, so they finish on the still — and then
+     the room goes dark and the line comes up, which is the rest of it. */
+  tail: 3.6,
+
+  /* The last word. The still darkens and one line is left on it, in colour
+     slot 1 — whichever colour the viewer has picked, so it is the page's own
+     colour speaking rather than a colour of the film's.
+
+       in     the second the screen starts going dark
+       veil   how black it gets, 0..1
+       over   seconds the dark takes
+       wait   seconds the line waits after the dark starts */
+  end: {
+    text: 'Nothing Designed By Me',
+    in:   7.25,
+    veil: 0.5,
+    over: 0.55,
+    wait: 0.30
+  },
 
   shots: [
 
