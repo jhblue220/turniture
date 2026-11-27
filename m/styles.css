@@ -140,6 +140,104 @@ a{ color:inherit; text-decoration:none; }
   will-change:transform, opacity;
 }
 
+
+/* ══ the four screens after the film ═════════════════════════════════════════
+   The drawing, the G-code film, the tray grid, the end frame. Each rides up
+   over the one before, the same slide the two films above them use, and each
+   is laid against the window rather than the artboard so it meets every edge.
+
+   They are the viewer's two colours and nothing else: slot 2 is the ground,
+   slot 1 is what is drawn on it. */
+.pane{
+  position:fixed; inset:0; z-index:0;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  background:var(--c2);
+  color:var(--c1);
+  opacity:0; visibility:hidden;
+  transform:translateY(100%);
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s linear .4s;
+}
+.pane.is-up{
+  opacity:1; visibility:visible;
+  transform:translateY(0);
+  transition: transform .78s cubic-bezier(.62,0,.2,1),
+              opacity .4s ease, visibility 0s;
+}
+/* They all sit at the same depth as the films, under the header; which of
+   them is on top is the order they appear in the markup, which is the order
+   they are reached in. */
+
+/* ── the drawing ───────────────────────────────────────────────────────────
+   Person, arrow, burst, arrow, printer, arrow, chair. They arrive left to
+   right a fifth of a second apart — the delay is per piece and set from
+   `process.js` — and each then keeps a wobble of its own, the boil of a
+   hand-drawn loop. The wobble is four numbers the script writes onto the
+   piece, so seven of them are seven sets of numbers rather than seven
+   hand-written keyframes. */
+.seq{ width:86%; max-width:calc(520px * var(--k)); }
+.seq svg{ display:block; width:100%; height:auto; }
+.seq svg > g{
+  opacity:0;
+  transform:translateY(calc(26px * var(--k)));
+  transform-box:fill-box; transform-origin:50% 50%;
+  transition: opacity .5s ease, transform .62s cubic-bezier(.2,.8,.25,1);
+}
+.seq.is-on svg > g{
+  opacity:1; transform:none;
+  animation-name:boil;
+  animation-iteration-count:infinite;
+  animation-timing-function:steps(1, end);   /* a jitter, not a drift */
+}
+@keyframes boil{
+  0%   { translate:0 0; rotate:0; scale:1; }
+  25%  { translate:var(--bx) calc(var(--by) * -1); rotate:var(--br); scale:var(--bs); }
+  50%  { translate:calc(var(--bx) * -1) var(--by); rotate:calc(var(--br) * -1); scale:1; }
+  75%  { translate:calc(var(--bx) * .6) calc(var(--by) * .7); rotate:calc(var(--br) * .4); scale:var(--bs); }
+  100% { translate:0 0; rotate:0; scale:1; }
+}
+@media (prefers-reduced-motion: reduce){
+  .seq.is-on svg > g{ animation:none; }
+}
+
+/* ── the G-code film ──────────────────────────────────────────────────────
+   Shown whole rather than cropped: it is a recording of a print, and the
+   edges of the frame are part of what it is showing. */
+.pane__v{
+  display:block; width:100%; height:100%;
+  object-fit:contain;
+}
+
+/* ── the tray grid ────────────────────────────────────────────────────────
+   Three stills that swap: the wording, then what went in, then what came
+   out. Two-tone filter underneath, the photographs laid
+   back over it as sprites, the middle cell left under the filter because it
+   is the tray mark rather than a photograph. */
+.tray{ position:relative; height:58%; aspect-ratio:1920 / 2000; max-width:88%; }
+.tray__f{
+  position:absolute; inset:0;
+  opacity:0;
+  transition:opacity .42s ease;
+}
+.tray__f.is-on{ opacity:1; }
+.tray__duo{
+  display:block; width:100%; height:100%;
+  filter:url(#duo);
+}
+.tray__c{
+  position:absolute;
+  background-repeat:no-repeat;
+}
+.duo-def{ position:absolute; width:0; height:0; }
+
+/* ── the end frame ────────────────────────────────────────────────────────
+   Exported in the two default colours, so it is put into the page and its
+   ground and its drawing are handed the live ones instead. */
+.endf{ width:100%; height:100%; }
+.endf svg{ display:block; width:100%; height:100%; }
+.endf .bg{ fill:var(--c2); }
+
 .viewport{
   position:fixed; inset:0; z-index:1;       /* over the film */
   display:flex; align-items:flex-start; justify-content:center;

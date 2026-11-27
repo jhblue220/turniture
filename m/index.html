@@ -55,6 +55,31 @@
   <div class="film__g" data-film-g></div>
 </div>
 
+<!-- ── the four screens after the film ──────────────────
+     What they hold is in `Reference/Process_01.png`, and `process.js` fills
+     and runs all four. Like the two films above them they are laid against
+     the window rather than the artboard, so each meets every edge.
+
+     Each one rides up over the one before when the wheel reaches it. They
+     carry no `src` and no markup of their own beyond this: the drawing and
+     the end frame are fetched and put in so they can be recoloured, and the
+     grid is built from the three stills. -->
+<section data-root="../" class="pane pane--seq" data-pane aria-hidden="true">
+  <div class="seq" data-seq></div>
+</section>
+
+<section data-root="../" class="pane pane--gcode" data-pane aria-hidden="true">
+  <video class="pane__v" data-gcode muted playsinline loop preload="none"></video>
+</section>
+
+<section data-root="../" class="pane pane--tray" data-pane aria-hidden="true">
+  <div class="tray" data-tray></div>
+</section>
+
+<section data-root="../" class="pane pane--end" data-pane aria-hidden="true">
+  <div class="endf" data-endframe></div>
+</section>
+
 <div class="viewport">
   <div class="stage" id="stage">
 
@@ -317,6 +342,7 @@
 <script src="../checkout.js"></script>
 <script src="../film-scenes.js"></script>
 <script src="../film.js"></script>
+<script src="../process.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

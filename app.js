@@ -291,13 +291,27 @@ const heroEl   = document.querySelector('.hero');
 const heroVid  = heroEl.querySelector('video');
 const scroller = document.getElementById('scroller');
 Film.mount();
+Process.mount();
 
-/* 0 the opening film · 1 the title sequence · 2 the scroll film.
-   The third is only there if its file is: should `Video/1.mp4` be missing,
-   `Film.ok()` goes false and the main page is the two screens it always was
-   rather than a black one nobody can scroll past. */
+/* How deep the main page runs:
+
+     0  the opening film
+     1  the title sequence
+     2  the living-room film
+     3  the drawing          \
+     4  the G-code film       |  `process.js`, in the order
+     5  the tray grid         |  `Reference/Process_01.png` sets
+     6  the end frame        /
+
+   The living-room film is only there if its file is: should `Video/1.mp4`
+   be missing, `Film.ok()` goes false, that screen drops out and everything
+   under it moves up one, rather than leaving a black screen nobody can
+   scroll past. The four after it are counted off the markup, so adding or
+   taking one away is a matter of the markup alone. */
+const FILM = 2;
+const deck = () => (Film.ok() ? FILM + 1 : FILM);   // depth of the first pane
 let deep = 0;
-const floor = () => (Film.ok() ? 2 : 1);
+const floor = () => deck() + Process.count() - 1;
 
 /* A browser may refuse to start it (Low Power Mode, a strict autoplay
    setting). Nothing else leans on it, so the refusal is let go of. */
@@ -309,10 +323,11 @@ function go(n){
   deep = n;
   const r = document.documentElement.classList;
   r.toggle('is-down', deep >= 1);
-  r.toggle('is-film', deep === 2);
+  r.toggle('is-film', deep === FILM);
   deep === 1 ? Intro.start() : Intro.stop();
   playFilm(deep === 0);
-  if (deep === 2) Film.enter(); else if (was === 2) Film.leave();
+  if (deep === FILM) Film.enter(); else if (was === FILM) Film.leave();
+  Process.at(deep, deck());
 }
 
 /* `true` is one screen deeper, `false` one back. */
@@ -322,8 +337,9 @@ const depth = next => go(Math.max(0, Math.min(floor(), deep + (next ? 1 : -1))))
 function atHome(on){
   const r = document.documentElement.classList;
   r.toggle('is-home', on);
-  if (deep === 2) Film.leave();
+  if (deep === FILM) Film.leave();
   deep = 0; r.remove('is-down'); r.remove('is-film');
+  Process.at(0, deck());
   Intro.stop();
   playFilm(on);
 }
@@ -460,6 +476,7 @@ function applyColors(){
   // canvas pixels do not follow CSS variables — both panels have to redraw
   Make.redraw();
   Checkout.redraw();
+  Process.redraw();
 }
 
 swatchEls.forEach(el => el.addEventListener('click', e => {
