@@ -386,34 +386,32 @@ scroller.addEventListener('click', e => { e.stopPropagation(); depth(true); });
 
 /* A flick of the thumb, read off the window — the picker's own swipe is on
    the card strip and never sees these. The threshold is in real pixels, so
-   it is the same flick whatever the artboard is scaled to.
-
-   On the film it stops being a flick and becomes a drag: the thumb is what
-   runs the picture, so every pixel of it is read as it is made rather than
-   waited on and then thrown away. */
+   it is the same flick whatever the artboard is scaled to. */
 let filmY = null;
 addEventListener('touchstart', e => { filmY = e.touches[0].clientY; }, { passive: true });
 addEventListener('touchmove', e => {
   if (filmY === null || page !== 'home') return;
   const y = e.touches[0].clientY, dy = filmY - y;
-  if (deep === 2){
-    filmY = y;
-    if (Film.scroll(dy * 2.4) === 'top') go(1);
-    return;
-  }
   if (Math.abs(dy) > 40) { depth(dy > 0); filmY = null; }
 }, { passive: true });
 addEventListener('touchend', () => { filmY = null; });
 
-/* and a wheel, for the handful of desktop browsers that land here */
+/* and a wheel, for the handful of desktop browsers that land here. One swipe
+   is one screen: a trackpad sends a flurry of notches for a single flick, and
+   the step is relative, so without the gate that flick would run clean past
+   the title sequence into the film. */
+const REST = 160, SLIDE = 900;
+let hold = 0;
+
 addEventListener('wheel', e => {
   if (page !== 'home') return;
-  if (deep === 2){
-    if (Film.scroll(e.deltaY) === 'top') go(1);
-    return;
-  }
   if (Math.abs(e.deltaY) < 2) return;
+  const now = performance.now();
+  const idle = now > hold;
+  hold = Math.max(hold, now + REST);
+  if (!idle) return;
   depth(e.deltaY > 0);
+  hold = now + SLIDE;
 }, { passive: true });
 
 /* Whichever of the five is open gets the box, and its glyph is knocked out

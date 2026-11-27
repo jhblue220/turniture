@@ -328,18 +328,29 @@ function atHome(on){
   playFilm(on);
 }
 
-/* Between the first two screens one notch either way is the whole gesture: a
-   trackpad sends a flurry of them and they all say the same thing, so the
-   move is idempotent. On the third it is the opposite — every notch counts,
-   because the notches are what run the film. */
+/* One swipe is one screen, however many notches it arrives as. A trackpad
+   sends a flurry of twenty for a single flick of two fingers, and the step
+   between screens is relative — it used to be "go to the titles", which no
+   number of notches could overshoot — so without this that one flick would
+   run 0 -> 1 -> 2 and the title sequence would never be seen at all. The gate
+   holds until the flurry has stopped AND the slide has finished. */
+const REST = 160;                       // quiet this long and the gesture is over
+const SLIDE = 900;                      // and the screen has finished moving
+let hold = 0;
+
+function stepped(dir){
+  const now = performance.now();
+  const idle = now > hold;
+  hold = Math.max(hold, now + REST);    // any notch keeps the gesture alive
+  if (!idle) return;
+  depth(dir);
+  hold = now + SLIDE;
+}
+
 addEventListener('wheel', e => {
   if (page !== 'home') return;
-  if (deep === 2){
-    if (Film.scroll(e.deltaY) === 'top') go(1);
-    return;
-  }
   if (Math.abs(e.deltaY) < 2) return;
-  depth(e.deltaY > 0);
+  stepped(e.deltaY > 0);
 }, { passive: true });
 
 addEventListener('keydown', e => {
@@ -347,11 +358,7 @@ addEventListener('keydown', e => {
   const on  = (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ');
   const off = (e.key === 'ArrowUp'   || e.key === 'PageUp');
   if (!on && !off) return;
-  if (deep === 2){
-    if (Film.scroll(on ? 300 : -300) === 'top') go(1);
-    return;
-  }
-  depth(on);
+  stepped(on);                          // held-down arrow keys repeat, too
 });
 
 scroller.addEventListener('click', () => depth(true));
@@ -362,11 +369,6 @@ addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passiv
 addEventListener('touchmove', e => {
   if (touchY === null || page !== 'home') return;
   const y = e.touches[0].clientY, dy = touchY - y;
-  if (deep === 2){
-    touchY = y;                                  // a drag, read as it is made
-    if (Film.scroll(dy * 2.4) === 'top') go(1);
-    return;
-  }
   if (Math.abs(dy) > 40) { depth(dy > 0); touchY = null; }
 }, { passive: true });
 addEventListener('touchend', () => { touchY = null; });

@@ -1,25 +1,24 @@
 /* ===========================================================================
-   The scroll film.
+   The film.
 
-   One screen below the title sequence the room plays, and the wheel is what
-   plays it. Nothing runs by itself: a notch down is a step forward through
-   the film, a notch up is a step back, and letting go of the wheel leaves the
-   picture on the frame it had reached.
+   One screen below the title sequence the room plays. It plays itself: the
+   screen arrives, the film starts from the top, and six seconds later it is
+   over. The wheel is not part of it — a notch down from the titles brings
+   this screen in, a notch up sends it back, and that is all the wheel does
+   here.
 
-   ── how the scroll becomes a time ────────────────────────────────────────
-   Not evenly, which is the whole point. `film-scenes.js` gives each shot a
-   weight, so the seconds a rectangle is up are given two or three times the
-   wheel of the footage either side of them, and a `pin` after it is a piece
-   of film with no length at all — the scroll runs on, the frame does not
-   change. That is the pause. Scrolling is never blocked and no timer is ever
-   started; the map from scroll to seconds is simply not a straight line.
+   ── what drives the rectangles ───────────────────────────────────────────
+   The film's own clock, and nothing else. `vid.currentTime` is read once a
+   frame and every rectangle's arrival is a second in `film-scenes.js`
+   against it. No seeking, no easing of the time, no map: the decoder plays
+   forward, which is the one thing it is good at.
 
-   ── why the picture is not jumped straight to that time ──────────────────
-   A wheel arrives in a flurry of notches and a seek is not free, so the time
-   the scroll asks for is a target the shown time eases towards, frame by
-   frame. That easing is what makes it feel like film rather than like a
-   slider, and it is also what keeps the decoder from being asked for forty
-   different seconds in one second of wall clock.
+   ── why the clock outlives the film ──────────────────────────────────────
+   The camera only reaches the view from above at 5.85 and the film runs out
+   at 6.04, which is not room for five rectangles to arrive one after
+   another. So the clock keeps counting past the end while the picture sits
+   on its last frame — `tail` in the settings — and the final beat plays out
+   on the still. It reads as the camera coming to rest, which is what it is.
 
    ── why the rectangles are measured against the video and not the window ──
    The film is laid against the window like the opening one, so it is cropped
@@ -33,55 +32,17 @@ const Film = (() => {
 
   const S = FILM_SCENES;
 
-  const TAU    = 0.085;   // seconds for the shown time to catch the asked one
-  const SEEK   = 1 / 90;  // don't trouble the decoder for less than this
-  const REVEAL = 0.18;    // a mark arrives over this share of its shot
-  const FADE   = 0.030;   // and leaves over this share of the whole film
-  const OVER   = 130;     // wheel past the top edge before the film lets go
-  const JUMP   = 0.5;     // seconds: past this, go straight there instead of easing
+  const RISE = 0.22;      // seconds a rectangle takes to arrive
+  const FALL = 0.26;      // and to leave
 
   let el, vid, gfx;
-  let marks = [], pieces = [], total = 0, dur = 0;
+  let marks = [];
   let broken = false, built = false, on = false;
-  let px = 0, over = 0;
-  let tNow = 0, last = 0, frame = null;
+  let dur = 0, vt = 0, last = 0, frame = null;
   let crop = { x: 0, y: 0, w: 0, h: 0 };
 
   const cl   = v => Math.max(0, Math.min(1, v));
   const ease = v => 1 - Math.pow(1 - v, 3);          // easeOutCubic
-
-  /* ── the map ─────────────────────────────────────────────────────────────
-     A list of pieces, each a stretch of film and the share of the scroll it
-     is given. A pinned piece has the same second at both ends. */
-  function layout(){
-    pieces = []; total = 0;
-    let cur = 0;
-
-    const add = (t0, t1, len) => { pieces.push({ t0, t1, len, p0: 0, p1: 0 }); total += len; return pieces.length - 1; };
-
-    for (const sh of S.shots){
-      if (sh.in > cur) add(cur, sh.in, (sh.in - cur) * S.gap);
-      sh._a = add(sh.in, sh.out, (sh.out - sh.in) * (sh.hold ?? 1));
-      sh._b = sh.pin ? add(sh.out, sh.out, sh.pin) : sh._a;
-      cur = sh.out;
-    }
-    if (dur > cur + 0.01) add(cur, dur, (dur - cur) * S.gap);
-
-    let acc = 0;
-    for (const pc of pieces){ pc.p0 = acc / total; acc += pc.len; pc.p1 = acc / total; }
-    for (const sh of S.shots){ sh.p0 = pieces[sh._a].p0; sh.p1 = pieces[sh._b].p1; }
-  }
-
-  function timeAt(p){
-    for (let i = 0; i < pieces.length; i++){
-      const pc = pieces[i];
-      if (p <= pc.p1 || i === pieces.length - 1){
-        const k = pc.p1 > pc.p0 ? cl((p - pc.p0) / (pc.p1 - pc.p0)) : 0;
-        return pc.t0 + (pc.t1 - pc.t0) * k;
-      }
-    }
-    return 0;
-  }
 
   /* ── where the video frame actually landed ───────────────────────────────
      The same sum `object-fit` does, so the rectangles land on the furniture
@@ -144,19 +105,19 @@ const Film = (() => {
         }
         gfx.appendChild(d);
         m.el = d; m.shot = sh;
+        m.t0 = sh.in + (m.at || 0);
         marks.push(m);
       }
     }
     built = true;
   }
 
-  function paint(p, t){
+  function paint(t){
     for (const m of marks){
       const sh   = m.shot;
-      const span = (sh.p1 - sh.p0) || 1e-6;
-      const from = sh.p0 + span * (m.at || 0);
-      const a    = ease(cl((p - from) / (span * REVEAL)));
-      const gone = 1 - cl((p - sh.p1) / FADE);
+      const a    = ease(cl((t - m.t0) / RISE));
+      /* `out: null` is the last word on the screen — it stays up. */
+      const gone = sh.out == null ? 1 : 1 - cl((t - sh.out) / FALL);
       const v    = Math.min(a, Math.max(0, gone));
 
       if (v <= 0){ m.el.style.opacity = '0'; continue; }
@@ -169,7 +130,7 @@ const Film = (() => {
         `translate(${crop.x + r[0] * crop.w}px, ${crop.y + r[1] * crop.h}px) scale(${1 + 0.05 * (1 - a)})`;
 
       if (m.txt){
-        const b = ease(cl((p - from - span * 0.05) / (span * REVEAL * 1.25)));
+        const b = ease(cl((t - m.t0 - 0.06) / (RISE * 1.25)));
         m.txt.style.opacity   = Math.min(b, Math.max(0, gone));
         m.txt.style.transform = `translateY(${(1 - b) * 7}px)`;
       }
@@ -180,22 +141,15 @@ const Film = (() => {
     const dt = Math.min(0.05, (now - last) / 1000) || 0.016;
     last = now;
 
-    const want = timeAt(px / S.run);
-    /* A long jump is not a camera move, it is somebody dragging the scrollbar
-       or coming back to the page. Easing across it would have the decoder
-       chasing a second a frame and arriving late; go straight there. */
-    tNow = Math.abs(want - tNow) > JUMP
-      ? want
-      : tNow + (want - tNow) * (1 - Math.exp(-dt / TAU));
+    /* The film's clock while there is film left, then our own. A paused or
+       stalled decoder simply stops the rectangles with the picture, which is
+       the honest thing for it to do. */
+    if (vid.ended || vid.currentTime >= dur - 0.02)
+      vt = Math.min(dur + (S.tail || 0), Math.max(vt, dur) + dt);
+    else
+      vt = vid.currentTime;
 
-    /* Only ever one seek in the air. Assigning `currentTime` again while the
-       last one is still working does not cancel it — the requests queue, the
-       picture falls behind the scroll and never catches up. */
-    if (!broken && !vid.seeking && vid.readyState >= 1
-        && Math.abs(vid.currentTime - tNow) > SEEK){
-      try { vid.currentTime = tNow; } catch (e) {}
-    }
-    paint(px / S.run, tNow);
+    paint(vt);
     frame = on ? requestAnimationFrame(tick) : null;
   }
 
@@ -211,11 +165,7 @@ const Film = (() => {
        rather than in the markup. Should it be missing, `broken` is what the
        page reads: the film screen is skipped and the main page is the two it
        always was, rather than a black screen nobody can scroll past. */
-    const ready = () => {
-      dur = vid.duration || 6;
-      layout(); cover(); build();
-      try { vid.currentTime = 0; } catch (e) {}
-    };
+    const ready = () => { ready_(); try { vid.currentTime = 0; } catch (e) {} };
     vid.addEventListener('error', () => { broken = true; });
     vid.addEventListener('loadedmetadata', ready);
     /* `film-scenes.js` names the file from the site root; the portrait build
@@ -223,39 +173,34 @@ const Film = (() => {
        already reaches back for the opening film. */
     vid.src = (el.dataset.root || '') + S.src;    // listeners first, then load
     if (vid.readyState >= 1) ready();
-    addEventListener('resize', () => { if (vid.videoWidth){ cover(); if (on) paint(px / S.run, tNow); } });
+    addEventListener('resize', () => { if (vid.videoWidth){ cover(); if (on) paint(vt); } });
   }
 
   function enter(){
     if (on || broken) return;
-    on = true; px = 0; over = 0; tNow = 0; last = performance.now();
-    /* iOS will not decode, and so will not seek, a film it has never been
-       told to play. One play-and-stop at the start is what unlocks it. */
-    vid.play().then(() => vid.pause()).catch(() => {});
-    if (!built && vid.readyState >= 1){ dur = vid.duration || 6; layout(); cover(); build(); }
+    on = true; vt = 0; last = performance.now();
+    if (!built && vid.readyState >= 1) ready_();
+    try { vid.currentTime = 0; } catch (e) {}
+    vid.play().catch(() => {});
+    paint(0);
     frame = requestAnimationFrame(tick);
   }
+
+  /* the same first load as `mount`, for the case where the metadata only
+     arrived after it ran */
+  function ready_(){ dur = vid.duration || 6; cover(); build(); }
 
   function leave(){
     on = false;
     cancelAnimationFrame(frame); frame = null;
     vid.pause();
+    try { vid.currentTime = 0; } catch (e) {}
+    vt = 0;
+    if (built) paint(0);
   }
 
-  /* Returns 'top' when the wheel has been pushed past the start of the film
-     for long enough that it should hand the screen back to the titles. */
-  function scroll(dy){
-    if (!on) return null;
-    if (dy < 0 && px <= 0){
-      over += -dy;
-      return over > OVER ? (over = 0, 'top') : null;
-    }
-    over = 0;
-    px = Math.max(0, Math.min(S.run, px + dy));
-    return null;
-  }
-
-  return { mount, enter, leave, scroll,
-           ok:  () => !broken,
-           at:  () => px / S.run };
+  return { mount, enter, leave,
+           ok:   () => !broken,
+           done: () => vt >= dur + (S.tail || 0),
+           at:   () => vt };
 })();
